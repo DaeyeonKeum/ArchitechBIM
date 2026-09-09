@@ -1,0 +1,1925 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>건축BIM섹션 주간 업무현황 대쉬보드</title>
+<link rel="stylesheet" href="lib/leaflet.css">
+<style>
+:root{
+  /* 무채색(중립) — 배경/표면/테두리/텍스트 */
+  --bg:#F3EFDF; --bg2:#FFFFFF; --panel:#FFFFFF; --line:#E7E1CF; --chipbg:#EFEBDC;
+  --ink:#262E38; --ink2:#5C6773; --ink3:#93A0A8;
+  /* 포인트 컬러 — 최대 4색: 주색상(파랑) + 신호등 3색(초록/주황/빨강). 그 외엔 전부 무채색 */
+  --cyan:#3D5A73; --cyan2:#7C97AC;
+  --good:#4F7A57; --warn:#C9922F; --warntext:#8A5A12; --bad:#C2604B; --plan:#9BA6AD;
+  --enc:#3D5A73; --anc:#5C6773; --fld:#C9922F;
+  --shadow:0 1px 2px rgba(38,46,56,.05), 0 6px 16px rgba(38,46,56,.06);
+  --radius:12px;
+  --sp1:8px; --sp2:16px; --sp3:24px; --sp4:32px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;font-size:13px}
+body{min-height:100vh}
+a{color:var(--cyan)}
+/* ---------- header : KPI 우선(F패턴) — 핵심 지표를 최상단에 크게 ---------- */
+header{background:var(--bg2);border-bottom:1px solid var(--line)}
+.htop{display:flex;align-items:baseline;gap:16px;padding:16px 24px 0}
+#clock{font-family:Consolas,monospace;color:var(--ink3);font-size:12px;letter-spacing:.3px}
+#clock b{color:var(--cyan);display:block;font-size:10.5px;letter-spacing:1.5px;font-weight:700;font-family:"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif}
+h1{margin:0;font-size:17px;font-weight:800;letter-spacing:-.2px;color:var(--ink)}
+h1 small{font-size:10.5px;font-weight:600;letter-spacing:2px;color:var(--ink3);margin-left:8px}
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:16px;padding:16px 24px 24px}
+.kpi{padding:14px 16px;border:1px solid var(--line);background:var(--bg2);border-radius:var(--radius);box-shadow:var(--shadow)}
+.kpi .kt{display:flex;align-items:center;gap:6px;color:var(--ink3);font-size:11.5px;font-weight:600;margin-bottom:8px}
+.kpi .kt i{font-style:normal;font-size:13px;color:var(--ink3)}
+.kpi b{font-size:28px;color:var(--ink);line-height:1;font-weight:800;letter-spacing:-.5px}
+.kpi.alert{border-color:rgba(194,96,74,.4)}
+.kpi.alert b,.kpi.alert .kt,.kpi.alert .kt i{color:var(--bad)}
+/* ---------- toolbar ---------- */
+.toolbar{display:flex;align-items:center;gap:12px;padding:12px 24px;flex-wrap:wrap;background:var(--bg2);border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:2px;background:var(--bg);padding:3px;border-radius:10px}
+.tab{padding:7px 16px;border:1px solid transparent;color:var(--ink2);cursor:pointer;background:transparent;border-radius:8px;font-weight:600;letter-spacing:.1px}
+.tab:hover{color:var(--ink)}
+.tab.active{color:#fff;background:var(--cyan);box-shadow:var(--shadow)}
+.spacer{flex:1}
+select,button,.btn,input[type=text],input[type=date]{font:inherit;color:var(--ink);background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer}
+select:focus,input:focus{border-color:var(--cyan2);outline:none}
+button:hover,.btn:hover{border-color:var(--cyan2);color:var(--cyan)}
+select option{color:var(--ink);background:#fff}
+.btn.primary{background:var(--cyan);color:#fff;border-color:var(--cyan);font-weight:600}
+.btn.primary:hover{background:#44607A;color:#fff}
+.status{font-size:11.5px;color:var(--ink3)}
+.status b{color:var(--cyan)}
+.srcbadge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--warntext);background:#FBF0DC;border:1px solid var(--warn);border-radius:8px;padding:4px 9px}
+.srcbadge b{color:var(--warntext)}
+.srcbadge .btn{padding:3px 9px;font-size:11px;font-weight:600;background:var(--warntext);color:#fff;border-color:var(--warntext)}
+.srcbadge .btn:hover{background:#6E440D;color:#fff}
+.sharewarn{display:flex;gap:10px;align-items:flex-start;background:#FBF0DC;border:1px solid var(--warn);color:var(--warntext);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;line-height:1.6}
+.sharewarn b{color:var(--warntext)}
+.sharewarn .ico{font-size:18px;line-height:1}
+.sdbadge{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--good);background:#E9F1E9;border:1px solid var(--good);border-radius:8px;padding:4px 9px}
+.sdbadge b{color:var(--good)}
+.sdbadge a{color:var(--good)}
+.sdbadge.ro{color:var(--cyan);background:#E7EEF3;border-color:var(--cyan)}  /* (신규) 읽기 전용 공유 보기 — 쓰기 권한 배지(초록)와 구분되는 파란색 */
+.sdbadge.ro b,.sdbadge.ro a{color:var(--cyan)}
+#drop{position:fixed;inset:0;background:rgba(243,239,223,.92);display:none;place-items:center;font-size:22px;font-weight:600;color:var(--cyan);z-index:200;border:3px dashed var(--cyan2)}
+#drop.on{display:grid}
+/* ---------- panels ---------- */
+main{padding:24px 24px 32px}
+.view{display:none}.view.active{display:block}
+.grid{display:grid;gap:16px}
+.g3{grid-template-columns:1fr 1.45fr 1fr}
+.g2{grid-template-columns:1fr 1fr}
+.g2h{grid-template-columns:2fr 1fr}
+.panel{position:relative;background:var(--panel);border:1px solid var(--line);padding:20px;border-radius:var(--radius);box-shadow:var(--shadow)}
+.panel h3{margin:0 0 12px;font-size:13px;color:var(--ink);letter-spacing:.1px;font-weight:700;display:flex;align-items:center;gap:8px}
+.panel h3::before{content:"";width:7px;height:7px;background:var(--cyan);border-radius:2px}
+.panel h3 .sub{margin-left:auto;font-weight:400;color:var(--ink3);letter-spacing:0;font-size:11px}
+details.panel>summary{cursor:pointer;list-style:revert}
+details.panel>summary::marker{color:var(--cyan)}
+details.panel:not([open])>summary h3{margin-bottom:0}
+details.panel>summary:hover h3{color:var(--cyan)}
+.chart{position:relative;height:190px}
+.chart.tall{height:250px}
+/* ---------- project cards ---------- */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.card{border:1px solid var(--line);background:var(--bg2);padding:14px;cursor:pointer;border-radius:10px;display:grid;grid-template-columns:56px 1fr;gap:12px;align-items:center;transition:.15s}
+.card:hover{border-color:var(--cyan2);box-shadow:var(--shadow);transform:translateY(-1px)}
+.card .id{font-family:Consolas,monospace;color:var(--ink3);font-size:10.5px}
+.card .nm{font-weight:700;color:var(--ink);font-size:12.5px;line-height:1.35;margin:2px 0 4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card .meta{font-size:11px;color:var(--ink2);display:flex;gap:8px;flex-wrap:wrap}
+.ring{position:relative;width:58px;height:58px}
+.ring svg{transform:rotate(-90deg)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:13px;color:var(--ink);font-weight:700}
+.ring b small{font-size:9.5px;color:var(--ink3);margin-left:1px;font-weight:400}
+/* ---------- tables ---------- */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{color:var(--ink2);font-weight:700;text-align:left;padding:8px 8px;border-bottom:2px solid var(--line);background:transparent;white-space:nowrap}
+td{padding:8px 8px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink)}
+tr:hover td{background:rgba(61,90,115,.05)}
+td.num,th.num{text-align:right;font-family:Consolas,monospace}
+.chip{display:inline-flex;align-items:center;padding:2px 9px 2px 7px;border-radius:999px;font-size:11.5px;margin:1px 3px 1px 0;white-space:nowrap;font-weight:600;color:var(--ink2);background:var(--chipbg)}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;margin-right:5px;flex-shrink:0;background:var(--ink3)}
+.chip.fld::before{background:var(--fld)}
+.chip.enc::before{background:var(--enc)}
+.chip.anc::before{background:var(--anc)}
+.chip.pj{cursor:pointer}
+.chip.pj::before{display:none}
+.chip.pj:hover{color:var(--cyan);background:rgba(61,90,115,.12)}
+.st{display:inline-block;padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700;white-space:nowrap}
+.st.진행{background:rgba(61,90,115,.13);color:var(--cyan)}.st.완료{background:rgba(79,122,87,.15);color:var(--good)}
+.st.지연{background:rgba(194,96,74,.15);color:var(--bad)}.st.예정{background:rgba(155,166,173,.22);color:var(--ink2)}
+.bar{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;min-width:60px}
+.bar i{display:block;height:100%;background:var(--cyan);border-radius:3px}
+/* 상세 팝업 "일정 · 진행률" 칸: 모든 업무가 같은 시간축(월/주)을 공유하는 미니 간트 – 위치가 실제 일정끼리 서로 비교됨 */
+.dgm{position:relative;height:15px;margin-bottom:3px;border-bottom:1px solid var(--line);font-size:10.5px;color:var(--ink3);font-weight:400;min-width:170px}
+.dgm span{position:absolute;top:0;height:100%;border-left:1px solid var(--line);padding-left:3px;white-space:nowrap;overflow:hidden;box-sizing:border-box}
+.dgtrack{position:relative;height:12px;background:var(--bg);border-radius:2px;min-width:170px}
+.dgtrack::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(var(--wk) - 1px),rgba(43,52,64,.06) calc(var(--wk) - 1px),rgba(43,52,64,.06) var(--wk));pointer-events:none;border-radius:2px}
+.dgseg{position:absolute;top:0;height:100%;border-radius:2px;overflow:hidden;background:rgba(155,166,173,.3)}
+.dgseg i{display:block;height:100%}
+.dgtoday{position:absolute;top:-2px;bottom:-2px;width:0;border-left:1.5px dashed var(--bad);z-index:2}
+.scroll{overflow:auto;max-height:340px}
+/* ---------- gantt ---------- */
+.gantt{--label:250px;border:1px solid var(--line);border-radius:10px;overflow:hidden;font-size:11.5px}
+.gantt .hdr,.gantt .row{display:grid;grid-template-columns:var(--label) 1fr}
+.gantt .hdr{background:var(--bg);border-bottom:1px solid var(--line)}
+.gantt .hdr .lbl{padding:7px 10px;color:var(--ink2);font-weight:700}
+.gantt .months{position:relative;height:28px}
+.gantt .months span{position:absolute;top:0;height:100%;border-left:1px solid var(--line);padding:6px 4px;color:var(--ink3);white-space:nowrap;overflow:hidden;font-size:11px}
+.gantt .row{border-bottom:1px solid var(--line);min-height:30px}
+.gantt .row:hover{background:rgba(61,90,115,.04)}
+.gantt .lbl{padding:5px 10px;display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+.gantt .lbl b{color:var(--ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gantt .lbl small{color:var(--ink3);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gantt .tl{position:relative}
+.gantt .tl::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0,transparent calc(var(--wk) - 1px),rgba(43,52,64,.05) calc(var(--wk) - 1px),rgba(43,52,64,.05) var(--wk))}
+.gantt .bar2{position:absolute;top:8px;height:14px;border-radius:4px;background:rgba(61,90,115,.22);border:1px solid rgba(61,90,115,.4);overflow:hidden;cursor:default}
+.gantt .bar2 i{display:block;height:100%;background:var(--cyan)}
+.gantt .bar2.완료{background:rgba(79,122,87,.2);border-color:rgba(79,122,87,.45)}.gantt .bar2.완료 i{background:var(--good)}
+.gantt .bar2.지연{border-color:rgba(194,96,74,.55)}.gantt .bar2.지연 i{background:var(--bad)}
+.gantt .bar2.예정{background:rgba(155,166,173,.2);border-style:dashed}
+.gantt .pct{position:absolute;top:7px;white-space:nowrap;color:var(--ink2);font-size:11.5px;pointer-events:none}
+.gantt .today{position:absolute;top:0;bottom:0;width:0;border-left:1.5px dashed var(--warn);z-index:2}
+.gantt .week{position:absolute;top:0;bottom:0;background:rgba(61,90,115,.08);border-left:1px solid rgba(61,90,115,.35);border-right:1px solid rgba(61,90,115,.35);z-index:1}
+.gantt .body{position:relative}
+.gantt .body .today,.gantt .body .week{left:0}
+/* ---------- project block ---------- */
+.pblock{margin:0 0 22px;padding:14px 14px 10px;border:1px solid var(--line);border-radius:12px;background:var(--bg2)}
+.pblock+.pblock{position:relative}
+.phead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.phead .t{font-size:15px;font-weight:700;color:var(--ink)}
+.phead .t small{font-family:Consolas,monospace;color:var(--ink3);font-weight:400;margin-right:8px}
+.phead .m{color:var(--ink3);font-size:11.5px}
+.phead .m b{color:var(--ink);font-size:14px}
+.filters{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+/* ---------- staff ---------- */
+.people{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.person{border:1px solid var(--line);border-left:3px solid var(--enc);background:var(--bg2);padding:10px 12px;border-radius:10px}
+.person.anc{border-left-color:var(--anc)}
+.person .nm{display:flex;align-items:baseline;gap:6px}.person .nm b{font-size:14px;color:var(--ink)}.person .nm span{color:var(--ink3);font-size:11px}
+.person .nm em{margin-left:auto;font-style:normal;font-family:Consolas,monospace;color:var(--ink3)}
+.person .pjs{margin:6px 0}
+.att{display:grid;grid-template-columns:auto 1fr auto;gap:3px 8px;align-items:center;font-size:11px;color:var(--ink2)}
+.att .bar{height:5px}
+.att .bar i.trip{background:var(--c2)}.att .bar i.ot{background:var(--c5)}.att .bar i.we{background:var(--c3)}.att .bar i.lv{background:var(--c4)}
+.att b{font-family:Consolas,monospace;color:var(--ink);min-width:22px;text-align:right}
+.heat td{text-align:center;font-family:Consolas,monospace;padding:5px 6px}
+.heat td.v{color:var(--ink)}
+.heat td.dc{padding:3px 3px;text-align:center}
+.dcode{display:inline-block;min-width:16px;padding:1px 3px;border-radius:4px;font-size:11px;color:#fff;font-weight:700;margin:0 1px}
+.dstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:8px}
+.dstrip .d{text-align:center;font-size:11px;color:var(--ink3);background:var(--bg);border-radius:6px;padding:3px 0}
+.dstrip .d.we span{color:var(--warntext)}
+.dstrip .d span{display:block}
+.dstrip .d i{display:inline-block;min-width:16px;padding:1px 2px;border-radius:4px;font-size:11px;color:#fff;font-style:normal;font-weight:700;margin-top:2px}
+.dstrip .d i.none{background:transparent;height:14px}
+.legend{display:flex;gap:12px;font-size:11px;color:var(--ink2);flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+/* ---------- modal ---------- */
+.modal{position:fixed;display:none;flex-direction:column;background:var(--bg2);border:1px solid var(--line);box-shadow:0 20px 60px rgba(43,52,64,.25);z-index:100;resize:both;overflow:hidden;min-width:520px;min-height:360px;border-radius:14px}
+.modal.open{display:flex}
+.mh{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--line);cursor:move;user-select:none}
+.mh .t{font-weight:700;color:var(--ink);font-size:14px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mh .t small{font-family:Consolas,monospace;color:var(--ink3);margin-right:8px;font-weight:400}
+.mh button{padding:3px 9px;font-size:12px}
+.mb{flex:1;overflow:auto;padding:14px 16px}
+.mb .grid{gap:12px}
+.field{display:grid;grid-template-columns:96px 1fr;gap:4px 8px;font-size:12px;margin-bottom:4px}
+.field dt{color:var(--ink3)}.field dd{margin:0;color:var(--ink)}
+.map{height:230px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.resize-hint{position:absolute;right:2px;bottom:2px;width:14px;height:14px;border-right:2px solid var(--line);border-bottom:2px solid var(--line);pointer-events:none;opacity:.8}
+#backdrop{position:fixed;inset:0;background:rgba(43,52,64,.35);display:none;z-index:90}
+#backdrop.on{display:block}
+/* ---------- viewer ---------- */
+#viewer .mb{padding:0;display:flex;flex-direction:row;overflow:hidden}
+#vcanvas{flex:1;position:relative;background:radial-gradient(ellipse at 50% 40%,#3a4552,#20262d 75%)}
+#vcanvas canvas{display:block;width:100%;height:100%}
+#vside{width:250px;border-left:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden;background:var(--bg2)}
+#vside h4{margin:0;padding:8px 10px;font-size:11.5px;color:var(--ink2);letter-spacing:.5px;border-bottom:1px solid var(--line);background:var(--bg);font-weight:700}
+#vside .sec{overflow:auto;padding:6px 10px;font-size:11.5px}
+#vside .sec.grow{flex:1}
+#vside label{display:flex;gap:6px;align-items:center;padding:2px 0;color:var(--ink2);cursor:pointer}
+#vside label i{width:9px;height:9px;border-radius:2px;display:inline-block}
+#vprops .k{color:var(--ink3)}#vprops .v{color:var(--ink);word-break:break-all}
+#vprops .ps{margin-top:6px;color:var(--cyan);font-weight:600}
+#vprops table td{padding:2px 4px;font-size:11px;border-bottom:1px solid var(--line)}
+.vtb{display:flex;gap:6px;align-items:center;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--bg2);flex-wrap:wrap}
+.vtb button,.vtb select{padding:4px 9px;font-size:11.5px}
+.vtb .status{margin-left:auto}
+.vtb .vsep{width:1px;height:18px;background:var(--line);margin:0 2px}
+.vtb button.on{border-color:var(--cyan);background:var(--cyan);color:#fff}
+#vPath{margin-left:0;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:Consolas,monospace}
+#vlabels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+#vlabels span{position:absolute;transform:translate(-50%,-120%);background:rgba(255,255,255,.95);border:1px solid var(--cyan);color:var(--ink);font-size:11px;padding:2px 6px;border-radius:5px;font-family:Consolas,monospace;white-space:nowrap}
+#vSearchRes div{padding:2px 4px;cursor:pointer;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#vSearchRes div:hover{color:var(--ink);background:var(--bg)}
+#vload{position:absolute;inset:0;display:none;place-items:center;background:rgba(32,38,45,.75);color:#fff;font-size:14px;z-index:5;text-align:center}
+#vload.on{display:grid}
+#vload .pb{width:260px;height:6px;background:rgba(255,255,255,.2);margin:10px auto 0;border-radius:3px;overflow:hidden}
+#vload .pb i{display:block;height:100%;background:#7C97AC;width:0}
+#vhint{position:absolute;left:10px;bottom:8px;font-size:11.5px;color:rgba(255,255,255,.65);pointer-events:none}
+input[type=range]{accent-color:var(--cyan)}
+.empty{color:var(--ink3);padding:20px;text-align:center}
+/* ---------- 데이터 입력(편집) ---------- */
+.editbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.editbar .status{margin-left:4px}
+table.edittbl{border-collapse:collapse}
+table.edittbl th{white-space:nowrap}
+table.edittbl td{padding:3px 4px}
+table.edittbl input,table.edittbl select{width:100%;min-width:56px;font-size:11.5px;padding:5px 7px;background:var(--bg2);border:1px solid var(--line);color:var(--ink);border-radius:6px}
+table.edittbl input:focus,table.edittbl select:focus{border-color:var(--cyan2);background:#fff;outline:none}
+table.edittbl input[type=number]{min-width:52px}
+table.edittbl input[type=date]{min-width:118px}
+#editTasks thead th,#editProjects thead th,#weekTbl thead th{position:sticky;top:0;z-index:2;background:var(--bg2);box-shadow:0 2px 0 var(--line)}
+#weekTbl thead th{cursor:pointer;user-select:none}
+#weekTbl thead th:hover{color:var(--cyan)}
+.rmrow{background:none;border:1px solid transparent;color:var(--bad);font-size:13px;padding:3px 7px;cursor:pointer;border-radius:6px}
+.rmrow:hover{border-color:var(--bad);background:rgba(194,96,74,.1)}
+@media (max-width:1300px){.g3{grid-template-columns:1fr 1fr}.g3 .span2{grid-column:span 2}.kpis{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:900px){.g3,.g2,.g2h{grid-template-columns:1fr}.g3 .span2{grid-column:auto}.kpis{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div id="drop">Excel 파일을 여기에 놓으세요 (여러 파일 가능)</div>
+<div id="backdrop"></div>
+
+<header>
+  <div class="htop">
+    <h1>건축BIM섹션 주간 업무현황<small>ARCHITECTURE BIM SECTION · WEEKLY DASHBOARD</small></h1>
+    <div class="spacer"></div>
+    <div id="clock"><b>WEEKLY STATUS</b><span id="clockv"></span></div>
+  </div>
+  <div class="kpis" id="kpis"></div>
+</header>
+
+<div class="toolbar">
+  <div class="tabs">
+    <div class="tab active" data-v="overview">종합 현황</div>
+    <div class="tab" data-v="pjt">PJT 지원 현황</div>
+    <div class="tab" data-v="task">수행과제 · 기타업무</div>
+    <div class="tab" data-v="staff">인력 현황</div>
+    <div class="tab" data-v="edit">데이터 입력</div>
+  </div>
+  <div class="spacer"></div>
+  <label class="status">기준 주차</label>
+  <select id="weekSel"></select>
+  <label class="status" title="누적 MD(현장별·과제별·인원별 누적 투입, 프로젝트 상세의 누적 MD 등)를 계산하는 기간 기준">누적 기준</label>
+  <select id="accMode"><option value="year">1년</option><option value="quarter">분기</option><option value="month">월</option></select>
+  <select id="accVal"></select>
+  <button class="btn primary" id="btnSharedLink" title="편집 권한이 있는 사람(예: OneDrive/SharePoint 공유 폴더에 '편집' 권한으로 초대된 부서원)이 사용합니다. 같은 JSON 파일 하나에 팀원 전체가 연결하면, 누가 '데이터 입력' 탭에서 무엇을 고치든 몇 초 안에 서로의 화면에 자동으로 반영됩니다 (Chrome/Edge 필요, 최초 1명이 새로 만들고 나머지는 그 파일에 연결)">실시간 공유 연결</button>
+  <button class="btn" id="btnSharedLinkView" title="편집 권한 없이 '읽기'만 가능한 사람(예: 전사 열람 대상)이 사용합니다. 같은 공유 파일을 선택하면 편집은 할 수 없지만, 편집자들이 저장한 내용이 몇 초 안에 자동으로 화면에 반영됩니다 (Chrome/Edge 필요)">실시간 공유 보기(읽기전용)</button>
+  <button class="btn primary" id="btnExcelLink" title="Excel 파일을 연결하면 저장할 때마다 자동으로 대쉬보드에 반영됩니다 (여러 파일 가능)">Excel 파일 연결</button>
+  <input type="file" id="fileExcel" accept=".xlsx,.xlsm,.xls" multiple hidden>
+  <button class="btn" id="btnExport" title="현재 화면(대쉬보드 위 '데이터 입력' 탭 포함)의 데이터를 기존 시트 구조 그대로 엑셀로 저장합니다. 저장된 파일은 지금 쓰시는 취합 방식(Excel 파일 연결 / build_dashboard.py)에 그대로 이어 쓰면 됩니다.">엑셀로 내보내기</button>
+  <button class="btn" id="btnSingleExport" title="지금 화면에 표시된 데이터 그대로(방금 화면에서 입력·수정한 내용 포함) '데이터 입력' 탭만 빼고 통째로 하나의 HTML 파일로 다운로드합니다. 이메일 첨부 등 외부 공유용. 파일을 직접 더블클릭(file://)해서 연 경우, 이미 단일파일(dashboard_single.html)이면 바로 되고, 다중 파일(dashboard.html)이면 처음 한 번만 이 dashboard.html이 든 폴더를 선택해 달라는 창이 뜨고 이후에는 자동으로 기억합니다.">공유용 단일파일 다운로드</button>
+  <input type="file" id="folderPicker" webkitdirectory multiple hidden>
+  <span class="status" id="srcStatus"></span>
+</div>
+
+<main>
+  <!-- ======================= 종합 ======================= -->
+  <section class="view active" id="v-overview">
+    <div class="grid g2h">
+      <div class="panel"><h3>① 프로젝트 지원 현황<span class="sub" id="hubSub"></span></h3><div class="cards" id="hub"></div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><div class="sub" id="hub2Sub" style="font-weight:600;color:var(--ink2);margin-bottom:8px"></div><div class="cards" id="hub2"></div></div>
+      </div>
+      <div class="panel"><h3>② 금주 주요 이슈<span class="sub" id="issueSub"></span></h3><div id="issues" style="max-height:420px;overflow:auto"></div></div>
+    </div>
+    <div class="grid g3" style="margin-top:14px">
+      <div class="panel" style="grid-column:span 3"><h3>③ 금주 업무 현황<span class="sub" id="weekTblSub"></span></h3><div class="scroll" id="weekTbl"></div></div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="panel"><h3>④ 주간 업무 건수 추이<span class="sub">진행 · 완료 · 지연</span></h3><div class="chart"><canvas id="chCount"></canvas></div></div>
+      <div class="panel"><h3>⑤ 주간 투입 M-Power 추이<span class="sub">Man-day / 주</span></h3><div class="chart"><canvas id="chTrend"></canvas></div></div>
+    </div>
+    <div class="grid g2" style="margin-top:14px">
+      <div class="panel"><h3>⑥ 인원별 금주 투입 M-Power<span class="sub">E&amp;C / A&amp;C</span></h3><div class="chart tall"><canvas id="chPerson"></canvas></div></div>
+      <div class="panel"><h3>⑦ 근태 현황 추이<span class="sub">출장 · 야근 · 주말 · 연차 (일)</span></h3><div class="chart"><canvas id="chAtt"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- ======================= PJT지원 ======================= -->
+  <section class="view" id="v-pjt">
+    <div class="grid g3" style="margin-bottom:14px">
+      <div class="panel"><h3>① 현장별 진행률<span class="sub">업무 평균 (기준주차)</span></h3><div class="chart tall"><canvas id="chPjtProg"></canvas></div></div>
+      <div class="panel"><h3>② 현장별 누적 투입 M-Power<span class="sub">MD</span></h3><div class="chart tall"><canvas id="chPjtMd"></canvas></div></div>
+      <div class="panel"><h3>③ 현장별 주간 투입 추이<span class="sub">금주 투입 현장만</span></h3><div class="chart tall"><canvas id="chPjtTrend"></canvas><div id="pjtTrendEmpty" class="empty" style="position:absolute;inset:0;display:none;place-items:center"></div></div></div>
+    </div>
+    <div class="panel">
+      <h3>④ 현장별 세부 업무 일정<span class="sub">막대: 일정(시작~종료) · 채움: 진행률 · 음영: 기준주차 · 점선: 오늘</span></h3>
+      <div class="filters">
+        <select id="pjtFilter"><option value="">전체 현장</option></select>
+        <select id="pjtPerson"><option value="">전체 담당자</option></select>
+        <label class="status"><input type="checkbox" id="pjtDone" checked> 완료 업무 표시</label>
+      </div>
+      <div id="pjtBlocks"></div>
+    </div>
+  </section>
+
+  <!-- ======================= 수행과제/기타 ======================= -->
+  <section class="view" id="v-task">
+    <div class="grid g2" style="margin-bottom:14px">
+      <div class="panel"><h3>과제별 누적 투입 M-Power</h3><div class="chart"><canvas id="chTaskMd"></canvas></div></div>
+      <div class="panel"><h3>과제별 주간 투입 추이</h3><div class="chart"><canvas id="chTaskTrend"></canvas></div></div>
+    </div>
+    <div class="panel">
+      <h3>수행과제 · 기타업무 일정</h3>
+      <div class="filters">
+        <select id="taskCat"><option value="">수행과제 + 기타업무</option><option value="수행과제">수행과제</option><option value="기타업무">기타업무</option></select>
+        <select id="taskPerson"><option value="">전체 담당자</option></select>
+        <label class="status"><input type="checkbox" id="taskDone" checked> 완료 업무 표시</label>
+      </div>
+      <div id="taskBlocks"></div>
+    </div>
+  </section>
+
+  <!-- ======================= 인력 ======================= -->
+  <section class="view" id="v-staff">
+    <div class="grid g2" style="margin-bottom:14px">
+      <div class="panel"><h3>소속별 투입 M-Power 추이</h3><div class="chart tall"><canvas id="chOrgTrend"></canvas></div></div>
+      <div class="panel"><h3>인원별 누적 투입 M-Power</h3><div class="chart tall"><canvas id="chPersonCum"></canvas></div></div>
+    </div>
+    <div class="panel" style="margin-bottom:14px"><h3>기준주차 요일별 근태 (인원 × 월~일)<span class="sub" id="attWeekSub"></span></h3><div class="scroll" id="attWeek" style="max-height:420px"></div></div>
+    <div class="panel" style="margin-bottom:14px"><h3>POSCO E&amp;C<span class="sub" id="encSub"></span></h3><div class="people" id="peopleEnc"></div></div>
+    <div class="panel" style="margin-bottom:14px"><h3>POSCO A&amp;C<span class="sub" id="ancSub"></span></h3><div class="people" id="peopleAnc"></div></div>
+    <div class="panel"><h3>주차별 요일 근태 현황표 <select id="attMonthSel" style="margin-left:6px"></select><span class="sub">월~일 · 출장/야근/주말/연차/반차 · 선택한 월의 주차만 표시</span></h3><div class="scroll" id="attTable"></div></div>
+  </section>
+
+  <!-- ======================= 데이터 입력 ======================= -->
+  <section class="view" id="v-edit">
+    <div class="sharewarn"><span class="ico">⚠</span><div>
+      <b>이 탭에서 입력한 내용은 기본적으로 지금 사용 중인 이 컴퓨터(브라우저)에만 저장됩니다</b> — NAS는 폴더 접근 권한이 있는 사람만 파일을 열 수 있어(현재는 담당자 1인) 다른 부서원의 자동 공유에는 쓸 수 없습니다.<br>
+      여러 사람의 입력을 서로의 화면에 자동으로 반영하려면: <b>① (권장) OneDrive/SharePoint 공유 폴더</b>에 <u>같은</u> 공유 JSON 파일 하나를 두고(부서원에게는 "편집", 전사 열람 대상에게는 "읽기" 권한 부여 → 각자 "OneDrive에 바로가기 추가"로 동기화), 편집 권한이 있는 분은 상단 <b>`실시간 공유 연결`</b>로, 읽기 권한만 있는 분(전사 열람)은 <b>`실시간 공유 보기(읽기전용)`</b>로 그 파일에 연결 — 누가 무엇을 고치든 몇 초 안에 전원의 화면에 자동 반영되고, 삭제도 함께 반영됩니다. ② 각자 엑셀 템플릿에 작성 → 취합 담당자가 모아 <code>python build_dashboard.py</code> 실행. ③ 이 화면에서 입력 후 상단 <b>`엑셀로 내보내기`</b>로 파일을 만들어 취합 담당자에게 전달. ④ 팀원 전체가 <b>`Excel 파일 연결`</b>로 같은 공유 엑셀 파일 하나에 연결(읽기 전용 자동 반영). 지금 이 화면 아래 표는 위 방법으로 연결돼 있지 않다면 <b>나만 보이는 개인 편집본</b>입니다.
+    </div></div>
+    <div class="panel" style="margin-bottom:14px">
+      <h3>① 업무현황<span class="sub" id="editTaskSub"></span></h3>
+      <div class="editbar">
+        <button class="btn primary" id="addTask">+ 업무 추가</button>
+        <button class="btn" id="sortTaskByProj" title="지금 목록을 프로젝트명 가나다순으로 한 번 정렬합니다 (자동 정렬 아님 — 누를 때만 정렬됩니다)">프로젝트명순 정렬</button>
+        <label class="status">주차</label><select id="editTaskWeek"></select>
+        <input type="text" id="editTaskSearch" placeholder="프로젝트ID / 업무명 검색" style="width:180px">
+      </div>
+      <div class="scroll" id="editTasks" style="max-height:460px"></div>
+    </div>
+    <div class="panel" style="margin-bottom:14px">
+      <h3>② 인력현황(근태)<span class="sub">칸에 출장/야근/주말/연차/반차 중 해당 사항을 쉼표로 입력 (예: 출장,야근) · 비우면 없음</span></h3>
+      <div class="editbar">
+        <label class="status">입력 주차</label><select id="editStaffWeek"></select>
+        <input type="date" id="editStaffWeekPick" title="목록에 없는 주차로 이동 (요일 아무 날짜나 선택하면 해당 주 월요일로 이동)">
+        <button class="btn" id="editStaffWeekGo">주차 이동</button>
+      </div>
+      <div class="scroll" id="editStaff" style="max-height:460px"></div>
+    </div>
+    <details class="panel" style="margin-bottom:14px">
+      <summary><h3>③ 프로젝트개요<span class="sub">신규 현장/과제 등록 · 기존 정보 수정 (펼쳐서 편집) · IFC 파일 지정은 프로젝트 상세 팝업의 3D 뷰어에서 그대로 진행</span></h3></summary>
+      <div class="editbar"><button class="btn primary" id="addProj">+ 프로젝트 추가</button><button class="btn" id="sortProj" title="지금 목록을 프로젝트ID 오름차순으로 한 번 정렬합니다 (자동 정렬 아님 — 누를 때만 정렬됩니다)">ID순 정렬</button><span class="status">새로 추가한 프로젝트는 항상 맨 아래에 나타납니다. 목록을 ID순으로 보고 싶으면 위 "ID순 정렬" 버튼을 누르세요(자동으로 정렬되지 않습니다). 칸을 수정하고 다른 곳을 클릭하면(포커스 아웃) 대쉬보드 전체에 바로 반영됩니다. ID는 업무현황과 연결되는 값이니 기존 프로젝트의 ID는 되도록 바꾸지 마세요.</span></div>
+      <div class="scroll" id="editProjects" style="max-height:420px"></div>
+    </details>
+    <details class="panel">
+      <summary><h3>④ 인원(기본 명단)<span class="sub">인력 현황 탭에 표시되는 순서 = 이 목록 순서 · POSCO E&amp;C / A&amp;C 구분 입력 (펼쳐서 편집)</span></h3></summary>
+      <div class="scroll" id="editMembers" style="max-height:400px"></div>
+    </details>
+  </section>
+</main>
+
+<!-- ======================= 프로젝트 상세 팝업 ======================= -->
+<div class="modal" id="pmodal" style="width:1080px;height:720px">
+  <div class="mh" data-drag="pmodal"><div class="t" id="pmTitle"></div>
+    <button data-max="pmodal" title="최대화/복원">▢</button><button data-close="pmodal">✕</button></div>
+  <div class="mb" id="pmBody"></div><div class="resize-hint"></div>
+</div>
+
+<!-- ======================= IFC 3D 뷰어 ======================= -->
+<div class="modal" id="viewer" style="width:1280px;height:720px">
+  <div class="mh" data-drag="viewer"><div class="t" id="vTitle">3D Viewer</div>
+    <button data-max="viewer">▢</button><button data-close="viewer">✕</button></div>
+  <div class="vtb">
+    <span class="status" id="vPath" title="프로젝트개요 시트의 IFC경로"></span>
+    <select id="vFile"></select>
+    <button id="vOpen" title="선택한 파일 열기">열기</button>
+    <button id="vPick" class="primary" title="이 프로젝트의 IFC 파일을 선택하면 바로 열리고, 브라우저가 프로젝트별로 기억합니다">파일 지정…</button>
+    <input type="file" id="vPickInput" accept=".ifc,.ifczip" multiple hidden>
+    <span class="vsep"></span>
+    <button data-view="iso" title="등각 (키 1)">등각</button><button data-view="top" title="평면 (키 2)">평면</button><button data-view="front" title="정면 (키 3)">정면</button><button data-view="side" title="측면 (키 4)">측면</button>
+    <button id="vFit" title="전체 화면 맞춤 (F)">맞춤</button>
+    <span class="vsep"></span>
+    <button id="vHide" title="선택 요소 숨기기 (H)">숨김</button><button id="vIso" title="선택 요소만 보기 (I)">격리</button><button id="vShowAll" title="모두 표시 (A)">전체</button>
+    <span class="vsep"></span>
+    <button id="vWire" title="투명 보기 (X)">X-Ray</button>
+    <button id="vEdge" title="외곽선 표시 (E)">외곽선</button>
+    <button id="vMeasure" title="두 점 거리 측정 (M) · 우클릭으로 종료">측정</button>
+    <button id="vShot" title="현재 화면 PNG 저장">캡처</button>
+    <label class="status">단면(Z) <input type="range" id="vClip" min="0" max="100" value="100" style="width:100px;vertical-align:middle"></label>
+    <span class="status" id="vStatus"></span>
+  </div>
+  <div class="mb">
+    <div id="vcanvas"><div id="vload"><div><span id="vloadMsg">로딩 중…</span><div class="pb"><i id="vloadBar"></i></div></div></div><div id="vlabels"></div><div id="vhint">좌드래그 회전 · 우드래그/휠드래그 이동 · 휠 확대 · 클릭 선택 · 더블클릭 확대 · Esc 선택해제</div></div>
+    <div id="vside">
+      <h4>검색</h4><div class="sec" style="max-height:170px"><input type="text" id="vSearch" placeholder="이름 / GlobalId / 유형 검색 후 Enter" style="width:100%"><div id="vSearchRes"></div></div>
+      <h4>층 (STOREY)</h4><div class="sec" id="vStoreys"></div>
+      <h4>요소 유형</h4><div class="sec" id="vTypes" style="max-height:150px"></div>
+      <h4>선택 요소 속성</h4><div class="sec grow" id="vprops"><span class="status">요소를 클릭하면 속성이 표시됩니다.</span></div>
+    </div>
+  </div>
+  <div class="resize-hint"></div>
+</div>
+
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/chart.umd.min.js"></script>
+<script src="lib/leaflet.js"></script>
+<script src="lib/three.min.js"></script>
+<script src="data/data.js"></script>
+<script>
+/* ============================================================ 데이터 */
+const DEFAULT_MEMBERS = [['금대연','POSCO E&C','리더'],['여민규','POSCO E&C','과장'],['강보희','POSCO E&C','과장'],['김재순','POSCO E&C','대리'],['조범현','POSCO A&C','차장'],['문우빈','POSCO A&C','대리'],['김두하','POSCO A&C','대리'],['신동환','POSCO A&C','대리'],['백지환','POSCO A&C','대리'],['강진훈','POSCO A&C','사원'],['권은주','POSCO A&C','사원']].map(([name, org, rank]) => ({name, org, rank}));
+const MEMBERS_VERSION = '2026-09-08';  // 인원 명단을 다시 확정할 때 이 값을 바꾸면, 브라우저에 저장돼 있던 예전 명단을 한 번만 아래 DEFAULT_MEMBERS로 갱신합니다 (그 이후의 수동 수정은 그대로 유지됩니다).
+const DAYK = ['mon','tue','wed','thu','fri','sat','sun'], DAYN = ['월','화','수','목','금','토','일'];
+const ATT = {'출': ['출장', '#93A0A8'], '야': ['야근', '#5C6773'], '주': ['주말근무', '#262E38'], '연': ['연차', '#C9922F'], '반': ['반차', '#8A5A12']};
+const CAT = {PJT지원:'PJT지원', 수행과제:'수행과제', 기타업무:'기타업무'};
+/* 다중 선 그래프(현장/과제별 추이)처럼 여러 계열을 동시에 구분해야 할 때만 쓰는 팔레트 — 전부 주색상(파랑)·중립회색·신호색(초록/주황/빨강)의 톤 변형이며 새로운 색상을 추가하지 않음 */
+const COLORS = ['#3D5A73','#7C97AC','#5C6773','#93A0A8','#4F7A57','#C9922F','#C2604B','#8A5A12'];
+const CATCOL = {PJT지원:'#3D5A73', 수행과제:'#5C6773', 기타업무:'#C9922F'};
+const statusColor = pct => pct >= 100 ? '#4F7A57' : pct > 0 ? '#3D5A73' : '#9BA6AD';
+let DATA = {projects:[], tasks:[], staff:[], members:[]};
+let WEEKS = [], WEEK = null;
+let ACC_MODE = 'year', ACC_YEAR = null, ACC_Q = null, ACC_MONTH = null;  // 데이터 누적(mdCum) 기준 기간
+let ATT_MONTH = null;  // '주차별 요일 근태 현황표' 표시 기준 월 (YYYY-MM)
+const $ = s => document.querySelector(s);
+const on = (sel, prop, fn) => { const el = $(sel); if (el) el[prop] = fn; };  // 요소가 없으면 조용히 무시 (공유용 단일파일에서 '데이터 입력' 탭 제거 시 안전)
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const split = s => String(s || '').split(/[,،、\/]/).map(x => x.trim()).filter(Boolean);
+const fmt = n => (Math.round((n || 0) * 10) / 10).toLocaleString();
+const dparse = s => { if (!s) return null; const m = String(s).match(/(\d{4})-(\d{2})-(\d{2})/); if (m) return new Date(+m[1], +m[2] - 1, +m[3]); const d = new Date(s); return isNaN(d) ? null : d; };  // 로컬 날짜로 해석 (시간대 무관)
+const dstr = d => d ? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : '';
+const wkLabel = w => { const d = dparse(w); return d ? `${d.getMonth()+1}/${d.getDate()}주` : w; };
+const proj = id => DATA.projects.find(p => p.id === id) || {id, name: id, category: '기타업무'};
+
+function normalizeWeek(w) {  // 임의 날짜 → 그 주 월요일
+  const d = dparse(w); if (!d) return w;
+  const day = (d.getDay() + 6) % 7; d.setDate(d.getDate() - day); return dstr(d);
+}
+function pickDefaultWeek() {  // 화면을 처음 열 때(또는 선택돼 있던 주차가 더 이상 존재하지 않을 때) 기본으로 보여줄 주차
+  // (2026-09 변경) 데이터가 있는 '가장 최근' 주차가 아니라, 오늘 날짜가 속한 주차를 기본으로 보여준다 — 필요하면 위 '기준 주차'에서 언제든 다른 주차를 고를 수 있다.
+  const today = normalizeWeek(dstr(new Date()));
+  if (WEEKS.includes(today)) return today;
+  const past = WEEKS.filter(w => w <= today);  // 이번 주 실적이 아직 없으면 오늘 이전 중 가장 최근 주차로
+  if (past.length) return past[past.length - 1];
+  return WEEKS[0] || null;  // 데이터가 전부 미래 주차뿐이면(예: 테스트 데이터) 오늘에서 가장 가까운(=가장 이른) 주차
+}
+const taskKey = t => [t.pid, t.task, t.detail || ''].join('|');
+const weekParts = w => { const d = dparse(w); return d ? {y: d.getFullYear(), m: d.getMonth() + 1, q: Math.floor(d.getMonth() / 3) + 1} : null; };  // 주차(월요일 날짜)의 연/월/분기
+function accAvailable() {  // 데이터에 실제로 존재하는 연/분기/월 목록 (WEEKS 기준, 오름차순)
+  const years = new Set(), quarters = new Set(), months = new Set();
+  WEEKS.forEach(w => { const p = weekParts(w); if (!p) return; years.add(p.y); quarters.add(p.y + '-Q' + p.q); months.add(p.y + '-' + String(p.m).padStart(2, '0')); });
+  return {years: [...years].sort((a, b) => a - b), quarters: [...quarters].sort(), months: [...months].sort()};
+}
+function accBounds() {  // '데이터 누적 기준'으로 선택된 기간의 [시작, 끝] 날짜(YYYY-MM-DD) — mdCum(누적 MD) 계산 범위
+  const y = ACC_YEAR || (WEEKS.length ? weekParts(WEEKS[WEEKS.length - 1]).y : new Date().getFullYear());
+  if (ACC_MODE === 'month') { const m = ACC_MONTH || 1; return [dstr(new Date(y, m - 1, 1)), dstr(new Date(y, m, 0))]; }
+  if (ACC_MODE === 'quarter') { const q = ACC_Q || 1; return [dstr(new Date(y, (q - 1) * 3, 1)), dstr(new Date(y, q * 3, 0))]; }
+  return [`${y}-01-01`, `${y}-12-31`];  // year
+}
+function prepare() {
+  DATA.projects = DATA.projects.filter(p => p.id);  // 방어: ID가 빈 유령 프로젝트 제거 (업무를 추가한 직후, 아직 프로젝트를 선택하지 않은 빈 pid('')를 실제 프로젝트로 잘못 자동 생성해버리던 과거 오류의 잔여물 정리 포함)
+  const byName = new Map(DATA.projects.map(p => [String(p.name || '').replace(/\s/g, ''), p.id])), ids = new Set(DATA.projects.map(p => p.id));
+  DATA.tasks.forEach(t => { if (t.pid && !ids.has(t.pid)) { const id = byName.get(String(t.pid || '').replace(/\s/g, '')); if (id) t.pid = id; } });  // 프로젝트명으로 입력된 ID 보정
+  DATA.tasks.forEach(t => { if (t.pid && !ids.has(t.pid) && !byName.has(String(t.pid || '').replace(/\s/g, ''))) { DATA.projects.push({id: t.pid, name: t.pid, category: /수행과제|기타/.test(t.task || '') ? '수행과제' : 'PJT지원', _ts: Date.now()}); ids.add(t.pid); } });  // pid가 아직 비어있는(프로젝트 미선택) 새 업무 행은 유령 프로젝트를 만들지 않고 그대로 둠 — 프로젝트를 선택하면 그 값으로 자연히 연결됨
+  DATA.tasks.forEach(t => { t.week = normalizeWeek(t.week); t.md = +t.md || 0; t.progress = +t.progress || 0;
+    if (!t.status) t.status = t.progress >= 100 ? '완료' : t.progress > 0 ? '진행' : '예정'; });
+  if (!DATA.members || !DATA.members.length) {  // 인원 시트 없으면: 인력현황 시트에 입력된 인원(등장 순) → 그것도 없으면 내장 기본 명단
+    const seen = new Map(); DATA.staff.forEach(s => { if (s.name && !seen.has(s.name)) seen.set(s.name, {name: s.name, org: s.org, rank: s.rank, fromStaff: true}); });
+    DATA.members = seen.size ? [...seen.values()] : DEFAULT_MEMBERS.map(x => ({...x}));
+  }
+  const mem = new Map(DATA.members.map(m => [m.name, m]));
+  DATA.staff.forEach(s => { if (!s.date) s.date = s.week; s.week = normalizeWeek(s.week); ['trip','overtime','weekend','leave'].forEach(k => s[k] = +s[k] || 0);
+    const m = mem.get(s.name); if (m) { if (!s.org || /^=/.test(s.org)) s.org = m.org; if (!s.rank || /^=/.test(s.rank)) s.rank = m.rank; }
+    s.org = /A&C|A＆C|AnC/i.test(s.org || '') ? 'POSCO A&C' : 'POSCO E&C';
+    if (!s.days) {
+      s.days = DAYK.map(k => String(s[k] || '').trim());
+      if (s.days.some(Boolean)) { const cnt = code => s.days.reduce((a, d) => a + (d.includes(code) ? 1 : 0), 0);  // (구) 요일 코드 입력형
+        s.trip = cnt('출'); s.overtime = cnt('야'); s.weekend = cnt('주'); s.leave = cnt('연') + cnt('반') * 0.5; }
+      else { const d = dparse(s.date); if (d) { const wd = (d.getDay() + 6) % 7; const codes = [];  // 이벤트(날짜)형
+        if (s.trip) codes.push('출장'); if (s.overtime) codes.push('야근'); if (s.weekend) codes.push('주말'); if (s.leave) codes.push(s.leave === 0.5 ? '반차' : '연차');
+        s.days[wd] = codes.join(','); } }
+    } });
+  // 같은 주·같은 사람 행 합치기 (날짜별 이벤트 행 → 주 단위)
+  const agg = new Map();
+  DATA.staff.forEach(s => { const k = s.week + '|' + s.name; const a = agg.get(k); if (!a) { agg.set(k, {...s, days: [...s.days]}); return; }
+    a.days = a.days.map((p, i) => [p, s.days[i]].filter(Boolean).join(','));
+    ['trip', 'overtime', 'weekend', 'leave'].forEach(f => a[f] = (a[f] || 0) + (s[f] || 0));
+    if (s.note && !(a.note || '').includes(s.note)) a.note = [a.note, s.note].filter(Boolean).join(' / ');
+    ['org', 'rank', 'projects'].forEach(f => { if (!a[f] && s[f]) a[f] = s[f]; }); });
+  DATA.staff = [...agg.values()];
+  WEEKS = [...new Set([...DATA.tasks.map(t => t.week), ...DATA.staff.map(s => s.week)])].filter(Boolean).sort();
+  if (!WEEK || !WEEKS.includes(WEEK)) WEEK = pickDefaultWeek();
+  if (WEEKS.length) {  // '누적 기준'/'근태 현황표' 기준월 최초 1회 기본값 = 최신 데이터가 있는 연/분기/월
+    const latest = weekParts(WEEKS[WEEKS.length - 1]);
+    if (ACC_YEAR == null) { ACC_YEAR = latest.y; ACC_Q = latest.q; ACC_MONTH = latest.m; }
+    if (ATT_MONTH == null) ATT_MONTH = `${latest.y}-${String(latest.m).padStart(2, '0')}`;
+  }
+}
+/* 최신 상태 업무 목록: 같은 (프로젝트, 업무항목)은 기준주차 이하 최신 행으로 대표.
+   누적 MD(mdCum)는 상단 '누적 기준'(연/분기/월)으로 선택한 기간 안의 MD만 합산 — 다른 필드(진행률·상태 등,
+   여러 주에 걸쳐 이어지는 같은 업무의 '지금까지의 최신 상태')는 이 기간과 무관하게 항상 기준주차까지의
+   전체 이력을 그대로 반영한다(누적 기준을 바꿔도 목록에서 업무가 사라지거나 상태가 달라지지 않음). */
+function latestTasks(upto = WEEK) {
+  const [accStart, accEnd] = accBounds();
+  const byKey = new Map();
+  DATA.tasks.filter(t => !upto || t.week <= upto).sort((a, b) => a.week.localeCompare(b.week)).forEach(t => {
+    const k = taskKey(t); if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(t);
+  });
+  return [...byKey.values()].map(rows => {
+    const last = rows[rows.length - 1];
+    const mdCum = rows.filter(t => t.week >= accStart && t.week <= accEnd).reduce((a, t) => a + t.md, 0);
+    return {...last, mdCum, mdWeek: last.week === upto ? last.md : 0, weeks: rows.length};
+  });
+}
+const weekTasks = w => DATA.tasks.filter(t => t.week === (w || WEEK));
+const weekStaff = w => DATA.staff.filter(s => s.week === (w || WEEK));
+function persons() {  // 인력 마스터: 인원 시트(기본 인원) → 인력현황 → 업무현황 담당자 순
+  const m = new Map();
+  (DATA.members || []).forEach(x => m.set(x.name, {name: x.name, org: /A&C/i.test(x.org || '') ? 'POSCO A&C' : 'POSCO E&C', rank: x.rank || '', base: true}));
+  DATA.staff.forEach(s => { const p = m.get(s.name) || {name: s.name, org: s.org, rank: s.rank}; if (s.rank && !p.rank) p.rank = s.rank; if (!p.base) p.org = s.org; m.set(s.name, p); });
+  if ((DATA.members || []).length) {  // 인원 시트(기본 인원)가 있으면 그 명단·순서만 표시, 명단 외 이름은 안내만
+    DATA.unmatched = [...m.values()].filter(p => !p.base).map(p => p.name);
+    return [...m.values()].filter(p => p.base);
+  }
+  DATA.tasks.forEach(t => { split(t.enc).forEach(n => { if (!m.has(n)) m.set(n, {name: n, org: 'POSCO E&C', rank: ''}); });
+                            split(t.anc).forEach(n => { if (!m.has(n)) m.set(n, {name: n, org: 'POSCO A&C', rank: ''}); }); });
+  return [...m.values()];
+}
+function personMd(t) {  // 업무 1건의 MD를 담당자 수로 균등 배분
+  const ns = [...split(t.enc), ...split(t.anc)]; const per = ns.length ? t.md / ns.length : 0;
+  return ns.map(n => [n, per]);
+}
+function mdByPerson(tasks) { const m = {}; tasks.forEach(t => personMd(t).forEach(([n, v]) => m[n] = (m[n] || 0) + v)); return m; }
+function projProgress(pid, tasks) { const ts = tasks.filter(t => t.pid === pid); return ts.length ? ts.reduce((a, t) => a + t.progress, 0) / ts.length : 0; }
+
+/* ============================================================ 공통 UI */
+setInterval(() => { const d = new Date(); $('#clockv').textContent = d.toLocaleString('ko-KR', {hour12: false}); }, 1000);
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'v-' + t.dataset.v));
+  render(t.dataset.v);
+});
+Chart.defaults.color = '#5C6773'; Chart.defaults.borderColor = 'rgba(43,52,64,.08)'; Chart.defaults.font.family = '"Apple SD Gothic Neo", Noto Sans KR, sans-serif'; Chart.defaults.font.size = 11;
+Chart.defaults.plugins.legend.labels.boxWidth = 10; Chart.defaults.plugins.legend.labels.boxHeight = 10;
+Chart.defaults.plugins.tooltip.backgroundColor = '#FFFFFF'; Chart.defaults.plugins.tooltip.borderColor = '#3D5A73'; Chart.defaults.plugins.tooltip.borderWidth = 1;
+Chart.defaults.plugins.tooltip.titleColor = '#2B3440'; Chart.defaults.plugins.tooltip.bodyColor = '#2B3440'; Chart.defaults.plugins.tooltip.padding = 8; Chart.defaults.plugins.tooltip.cornerRadius = 8;
+const valueLabelPlugin = suffix => ({id: 'vl', afterDatasetsDraw(c) { const {ctx} = c; ctx.save(); ctx.font = '11px Consolas, monospace'; ctx.fillStyle = '#2B3440'; ctx.textBaseline = 'middle'; c.data.datasets.forEach((ds, di) => c.getDatasetMeta(di).data.forEach((el, i) => { const v = ds.data[i]; if (v == null) return; ctx.fillText(fmt(v) + suffix, el.x + 6, el.y); })); ctx.restore(); }});
+const charts = {};
+function chart(id, cfg) { if (charts[id]) charts[id].destroy(); const c = document.getElementById(id); if (!c) return; charts[id] = new Chart(c, cfg); }
+const ringSvg = (p, size = 58, col = '#3D5A73') => { const r = (size - 8) / 2, C = 2 * Math.PI * r; return `<div class="ring" style="width:${size}px;height:${size}px"><svg width="${size}" height="${size}"><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="rgba(43,52,64,.08)" stroke-width="5"/><circle cx="${size/2}" cy="${size/2}" r="${r}" fill="none" stroke="${col}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - p / 100)}"/></svg><b>${Math.round(p)}<small>%</small></b></div>`; };
+const chips = (field, enc, anc) => split(field).map(n => `<span class="chip fld" title="현장담당">${esc(n)}</span>`).join('') + split(enc).map(n => `<span class="chip enc" title="건축BIM섹션 담당">${esc(n)}</span>`).join('') + split(anc).map(n => `<span class="chip anc" title="작업담당(A&C)">${esc(n)}</span>`).join('');
+
+/* ============================================================ 간트 */
+function ganttRange(tasks) {  // 여러 프로젝트 블록이 같은 시간축을 공유하도록 – 주어진 업무 전체를 아우르는 월 경계 범위 계산
+  const ds = tasks.flatMap(t => [dparse(t.start), dparse(t.end)]).filter(Boolean);
+  const wk = dparse(WEEK) || new Date();
+  let min = new Date(Math.min(...ds, wk)), max = new Date(Math.max(...ds, wk.getTime() + 6 * 864e5));
+  min = new Date(min.getFullYear(), min.getMonth(), 1); max = new Date(max.getFullYear(), max.getMonth() + 1, 1);
+  return {min, max};
+}
+function gantt(tasks, opts = {}) {  // opts.range를 넘기면(현장별 세부 업무 일정) 그 시간축을 그대로 쓴다 – 위아래 여러 프로젝트 블록의 일정 위치가 서로 정렬됨
+  if (!tasks.length) return '<div class="empty">표시할 업무가 없습니다.</div>';
+  const wk = dparse(WEEK) || new Date();
+  const {min, max} = opts.range || ganttRange(tasks);
+  const span = max - min, x = d => (d - min) / span * 100;
+  let months = '';
+  for (let m = new Date(min); m < max; m.setMonth(m.getMonth() + 1)) {
+    const n = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+    months += `<span style="left:${x(m)}%;width:${(n - m) / span * 100}%">${m.getFullYear()}.${String(m.getMonth()+1).padStart(2,'0')}</span>`;
+  }
+  const today = new Date(); const wkEnd = new Date(wk.getTime() + 7 * 864e5);
+  const marks = `<div class="week" style="left:${x(wk)}%;width:${(wkEnd - wk) / span * 100}%"></div>` + (today >= min && today <= max ? `<div class="today" style="left:${x(today)}%"></div>` : '');
+  const rows = tasks.map(t => {
+    const s = dparse(t.start) || wk, e = dparse(t.end) || new Date(s.getTime() + 7 * 864e5);
+    const l = x(s), w = Math.max(0.4, x(new Date(e.getTime() + 864e5)) - l);
+    const lbl = opts.showProject ? `<b>${esc(t.task)}</b><small>${esc(proj(t.pid).name)} · ${esc([t.enc, t.anc].filter(Boolean).join(' / '))}</small>`
+                                 // 세부내용을 상단(굵게), 업무항목(예: '기타업무')을 하단(작게)에 표기 — 업무항목이 '수행과제'/'기타업무' 같은
+                                 // 공통 라벨이라 세부내용이 실제로 어떤 업무인지 알려주는 핵심 정보이기 때문
+                                 : `<b title="${esc(t.detail || t.task || '')}">${esc(t.detail || t.task || '-')}</b>${t.detail ? `<small>${esc(t.task || '')}</small>` : ''}`;
+    return `<div class="row"><div class="lbl">${lbl}</div><div class="tl"><div class="bar2 ${t.status}" style="left:${l}%;width:${w}%" title="${esc(t.task)}\n${t.start} ~ ${t.end}\n진행률 ${t.progress}% · ${t.status}\n금주 ${fmt(t.mdWeek)} MD / 누적 ${fmt(t.mdCum)} MD\n${esc(t.detail || '')}"><i style="width:${t.progress}%"></i></div><span class="pct" style="left:calc(${l + w}% + 6px)">${t.progress}%</span></div></div>`;
+  }).join('');
+  const wkPct = 7 * 864e5 / span * 100;
+  return `<div class="gantt" style="--wk:${wkPct}%"><div class="hdr"><div class="lbl">세부내용 / 업무항목</div><div class="months">${months}</div></div>
+    <div class="body"><div style="position:absolute;left:var(--label);right:0;top:0;bottom:0;pointer-events:none">${marks}</div>${rows}</div></div>`;
+}
+function taskDetailTable(tasks) {  // 프로젝트 상세 팝업 전용: 세부 업무 일정(간트)과 세부 업무 내용 표를 하나로 합친 뷰.
+                                    // "일정 · 진행률" 칸은 모든 업무가 같은 월/주 시간축을 공유하는 미니 간트 – 위쪽엔 월 표시, 그 아래 각 업무의
+                                    // 가로 막대가 실제 날짜 위치에 정렬되어 서로 비교 가능하고, 진행률은 막대 컬러(채움)+%로, 오늘은 모든 행에 공통된
+                                    // 같은 x좌표에 붉은 점선으로 표시된다.
+  if (!tasks.length) return '<div class="empty">해당 업무가 없습니다.</div>';
+  const barCol = t => t.status === '완료' ? '#4F7A57' : t.status === '지연' ? '#C2604B' : t.status === '예정' ? 'repeating-linear-gradient(45deg,#B8C0C6,#B8C0C6 4px,#A5AEB5 4px,#A5AEB5 8px)' : 'var(--cyan)';
+  const segBg = t => t.status === '완료' ? 'rgba(79,122,87,.2)' : t.status === '지연' ? 'rgba(194,96,74,.2)' : t.status === '예정' ? 'rgba(155,166,173,.28)' : 'rgba(61,90,115,.2)';
+  // 모든 업무의 일정 + 오늘을 아우르는 공통 시간축(월 경계로 확장)
+  const today = new Date();
+  const ds = tasks.flatMap(t => [dparse(t.start), dparse(t.end)]).filter(Boolean);
+  let min, max;
+  if (ds.length) { min = new Date(Math.min(...ds, today)); max = new Date(Math.max(...ds, today)); }
+  else { min = new Date(today); max = new Date(today); }
+  min = new Date(min.getFullYear(), min.getMonth(), 1); max = new Date(max.getFullYear(), max.getMonth() + 1, 1);
+  const span = Math.max(1, max - min), x = d => Math.max(0, Math.min(100, (d - min) / span * 100));
+  const todayPct = (today >= min && today <= max) ? x(today) : null;
+  const wkPct = Math.min(50, 7 * 864e5 / span * 100);
+  let monthsHtml = '';
+  for (let m = new Date(min); m < max; m.setMonth(m.getMonth() + 1)) {
+    const n = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+    monthsHtml += `<span style="left:${x(m)}%;width:${(Math.min(n, max) - m) / span * 100}%">${m.getFullYear()}.${String(m.getMonth() + 1).padStart(2, '0')}</span>`;
+  }
+  const monthHeader = `<div class="dgm">${monthsHtml}${todayPct != null ? `<span class="dgtoday" style="left:${todayPct}%"></span>` : ''}</div>`;
+  const miniGantt = t => {
+    const s = dparse(t.start), e = dparse(t.end);
+    const seg = (s && e && e >= s) ? `<div class="dgseg" style="left:${x(s)}%;width:${Math.max(0.8, x(new Date(e.getTime() + 864e5)) - x(s))}%;background:${segBg(t)}" title="${esc(t.start)} ~ ${esc(t.end)}"><i style="width:${t.progress}%;background:${barCol(t)}"></i></div>` : '';
+    return `<div style="display:flex;align-items:center;gap:8px;margin-top:3px">
+      <div class="dgtrack" style="flex:1;--wk:${wkPct}%">${seg}${todayPct != null ? `<span class="dgtoday" style="left:${todayPct}%"></span>` : ''}</div>
+      <small style="white-space:nowrap;color:var(--ink2)">${t.progress}% · ${esc(t.status)}</small></div>`;
+  };
+  return `<table><thead><tr><th>업무항목</th><th>세부내용</th><th style="min-width:220px">일정 · 진행률${monthHeader}</th><th>담당자</th><th class="num">MD</th><th class="num">누적MD</th><th>이슈사항</th></tr></thead><tbody>` +
+    tasks.map(t => `<tr><td><b>${esc(t.task)}</b></td><td>${esc(t.detail || '')}</td><td style="white-space:nowrap">${esc(t.start || '')} ~ ${esc(t.end || '')}${miniGantt(t)}</td>
+      <td>${chips(t.field, t.enc, t.anc)}</td><td class="num">${fmt(t.mdWeek)}</td><td class="num">${fmt(t.mdCum)}</td><td style="color:${t.issue ? 'var(--warntext)' : 'var(--ink3)'}">${esc(t.issue || '')}</td></tr>`).join('') + '</tbody></table>';
+}
+/* '금주 업무 현황'(weekTbl) 정렬 상태 — 헤더 클릭 시 오름차순/내림차순 토글 (2026-09 신규) */
+let weekTblRows = [], weekTblSortKey = 'proj', weekTblSortDir = 1;
+function weekTblSortVal(t, key) {
+  switch (key) {
+    case 'proj': return String(proj(t.pid).name || t.pid || '');
+    case 'task': return String(t.task || '');
+    case 'detail': return String(t.detail || '');
+    case 'sched': return String(t.start || '') + '_' + String(t.end || '');
+    case 'progress': return +t.progress || 0;
+    case 'person': return [t.field, t.enc, t.anc].filter(Boolean).join(' ');
+    case 'mdWeek': return +t.mdWeek || 0;
+    case 'mdCum': return +t.mdCum || 0;
+    case 'status': return String(t.status || '');
+    default: return '';
+  }
+}
+function sortWeekTbl(key) {
+  if (weekTblSortKey === key) weekTblSortDir *= -1; else { weekTblSortKey = key; weekTblSortDir = 1; }
+  renderWeekTbl();
+}
+function renderWeekTbl() {
+  const rows = weekTblRows.slice();
+  if (weekTblSortKey) rows.sort((a, b) => {
+    const va = weekTblSortVal(a, weekTblSortKey), vb = weekTblSortVal(b, weekTblSortKey);
+    const cmp = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb), 'ko');
+    return cmp * weekTblSortDir;
+  });
+  $('#weekTbl').innerHTML = taskTable(rows, true);
+}
+function taskTable(tasks, showProject) {
+  if (!tasks.length) return '<div class="empty">해당 업무가 없습니다.</div>';
+  // showProject 테이블(현재는 종합현황의 '금주 업무 현황'만 해당)은 헤더를 클릭해 각 항목 기준 오름차순/내림차순으로 정렬할 수 있다.
+  const arrow = key => weekTblSortKey === key ? (weekTblSortDir > 0 ? ' ▲' : ' ▼') : '';
+  const th = (label, key) => showProject ? `<th onclick="sortWeekTbl('${key}')" title="클릭 시 이 항목 기준으로 정렬(다시 클릭하면 역순)">${label}${arrow(key)}</th>` : `<th>${label}</th>`;
+  return `<table><thead><tr>${showProject ? th('프로젝트', 'proj') : ''}${th('업무항목', 'task')}${th('세부내용', 'detail')}${th('일정', 'sched')}${th('진행률', 'progress')}${th('담당자', 'person')}<th class="num" ${showProject ? `onclick="sortWeekTbl('mdWeek')" title="클릭 시 이 항목 기준으로 정렬(다시 클릭하면 역순)" style="cursor:pointer"` : ''}>금주 MD${showProject ? arrow('mdWeek') : ''}</th><th class="num" ${showProject ? `onclick="sortWeekTbl('mdCum')" title="클릭 시 이 항목 기준으로 정렬(다시 클릭하면 역순)" style="cursor:pointer"` : ''}>누적 MD${showProject ? arrow('mdCum') : ''}</th>${th('상태', 'status')}</tr></thead><tbody>` +
+    tasks.map(t => `<tr>${showProject ? `<td><span class="chip pj" onclick="openProject('${esc(t.pid)}')">${esc(proj(t.pid).name)}</span></td>` : ''}<td><b>${esc(t.task)}</b></td><td>${esc(t.detail || '')}</td><td style="white-space:nowrap">${esc(t.start || '')} ~ ${esc(t.end || '')}</td><td><div class="bar"><i style="width:${t.progress}%"></i></div><small>${t.progress}%</small></td><td>${chips(t.field, t.enc, t.anc)}</td><td class="num">${fmt(t.mdWeek)}</td><td class="num">${fmt(t.mdCum)}</td><td><span class="st ${t.status}">${esc(t.status)}</span></td></tr>`).join('') + '</tbody></table>';
+}
+
+/* ============================================================ 렌더 */
+function renderHeader() {
+  const lt = latestTasks(), wt = weekTasks();
+  const pj = DATA.projects.filter(p => p.category === 'PJT지원'), tk = DATA.projects.filter(p => p.category === '수행과제'), et = DATA.projects.filter(p => p.category === '기타업무');
+  const ps = persons(); const enc = ps.filter(p => p.org === 'POSCO E&C').length, anc = ps.length - enc;
+  const mdw = wt.reduce((a, t) => a + t.md, 0), mdc = lt.reduce((a, t) => a + t.mdCum, 0);
+  const delayed = lt.filter(t => t.status === '지연').length;
+  $('#kpis').innerHTML = [
+    ['🏗', pj.length, '지원 현장'], ['📋', tk.length + et.length, '수행과제 · 기타'], ['👥', `${ps.length}<small style="font-size:11px;color:var(--ink3);font-weight:600"> (E&C ${enc}·A&C ${anc})</small>`, (DATA.members || []).length ? '기본 인원' : '투입 인원'],
+    ['⚡', fmt(mdw), '금주 투입 MD'], ['Σ', fmt(mdc), '누적 투입 MD'], ['⚠', delayed, '지연 업무']
+  ].map(([i, v, l], idx) => `<div class="kpi${idx === 5 && delayed > 0 ? ' alert' : ''}"><div class="kt"><i>${i}</i>${l}</div><b>${v}</b></div>`).join('');
+  const sel = $('#weekSel'); sel.innerHTML = WEEKS.map(w => `<option value="${w}" ${w === WEEK ? 'selected' : ''}>${w} (${wkLabel(w)})</option>`).join('');
+  fillAccOptions();
+}
+function fillAccOptions() {  // '누적 기준' 모드(연/분기/월)에 맞춰 값 선택 목록을 채움 — 실제 데이터가 있는 기간만 표시
+  const avail = accAvailable();
+  $('#accMode').value = ACC_MODE;
+  const sel = $('#accVal');
+  if (ACC_MODE === 'quarter') sel.innerHTML = avail.quarters.map(q => { const [y, qq] = q.split('-Q'); return `<option value="${q}" ${+y === ACC_YEAR && +qq === ACC_Q ? 'selected' : ''}>${y}년 ${qq}분기</option>`; }).join('');
+  else if (ACC_MODE === 'month') sel.innerHTML = avail.months.map(mo => { const [y, mm] = mo.split('-'); return `<option value="${mo}" ${+y === ACC_YEAR && +mm === ACC_MONTH ? 'selected' : ''}>${y}년 ${+mm}월</option>`; }).join('');
+  else sel.innerHTML = avail.years.map(y => `<option value="${y}" ${y === ACC_YEAR ? 'selected' : ''}>${y}년</option>`).join('');
+}
+$('#accMode').onchange = e => { ACC_MODE = e.target.value; fillAccOptions(); render(); };
+$('#accVal').onchange = e => {
+  const v = e.target.value; if (!v) return;
+  if (ACC_MODE === 'quarter') { const [y, q] = v.split('-Q'); ACC_YEAR = +y; ACC_Q = +q; }
+  else if (ACC_MODE === 'month') { const [y, m] = v.split('-'); ACC_YEAR = +y; ACC_MONTH = +m; }
+  else ACC_YEAR = +v;
+  render();
+};
+function renderOverview() {
+  const lt = latestTasks(), wt = weekTasks(), ws = weekStaff();
+  // 프로젝트 허브
+  const pj = DATA.projects.filter(p => p.category === 'PJT지원').map(p => ({...p, _n: lt.filter(t => t.pid === p.id).length})).filter(p => p._n > 0).sort((a, b) => b._n - a._n);
+  $('#hubSub').textContent = `${pj.length}개 현장 (업무현황 등록된 현장만) · 업무 많은 순 · 클릭 시 상세`; $('#issueSub').textContent = `${WEEK || ''} 기준`;
+  $('#hub').innerHTML = pj.map((p, i) => { const ts = lt.filter(t => t.pid === p.id); const prog = projProgress(p.id, lt);
+    const md = ts.reduce((a, t) => a + t.mdCum, 0), mdw = ts.reduce((a, t) => a + t.mdWeek, 0);
+    return `<div class="card" onclick="openProject('${p.id}')">${ringSvg(prog, 58, statusColor(prog))}<div><div class="id">${esc(p.id)} · ${esc(p.address || '')}</div><div class="nm">${esc(p.name)}</div><div class="meta"><span>업무 ${ts.length}</span><span>금주 ${fmt(mdw)} MD</span><span>누적 ${fmt(md)} MD</span></div><div style="margin-top:4px">${chips(p.field, p.enc, p.anc)}</div></div></div>`; }).join('') || '<div class="empty">업무현황이 입력된 PJT지원 프로젝트가 없습니다.</div>';
+  // (2026-09 신규) 프로젝트 지원 현황 밑에 수행과제·기타업무도 동일한 카드 형식으로 함께 표시
+  const pj2 = DATA.projects.filter(p => p.category !== 'PJT지원').map(p => ({...p, _n: lt.filter(t => t.pid === p.id).length})).filter(p => p._n > 0).sort((a, b) => b._n - a._n);
+  $('#hub2Sub').textContent = `수행과제 · 기타업무 — ${pj2.length}건 (업무현황 등록된 것만) · 업무 많은 순`;
+  $('#hub2').innerHTML = pj2.map(p => { const ts = lt.filter(t => t.pid === p.id); const prog = projProgress(p.id, lt);
+    const md = ts.reduce((a, t) => a + t.mdCum, 0), mdw = ts.reduce((a, t) => a + t.mdWeek, 0);
+    return `<div class="card" onclick="openProject('${p.id}')">${ringSvg(prog, 58, statusColor(prog))}<div><div class="id">${esc(p.category)}</div><div class="nm">${esc(p.name)}</div><div class="meta"><span>업무 ${ts.length}</span><span>금주 ${fmt(mdw)} MD</span><span>누적 ${fmt(md)} MD</span></div><div style="margin-top:4px">${chips(p.field, p.enc, p.anc)}</div></div></div>`; }).join('') || '<div class="empty">업무현황이 입력된 수행과제·기타업무가 없습니다.</div>';
+  const iss = wt.filter(t => t.issue).sort((a, b) => a.pid.localeCompare(b.pid)); const delayed = lt.filter(t => t.status === '지연' && !iss.includes(t));
+  $('#issues').innerHTML = (iss.map(t => `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><span class="chip pj" onclick="openProject('${t.pid}')">${esc(proj(t.pid).name || t.pid)}</span> <span style="color:var(--warntext);font-weight:600">${esc(t.issue)}</span> <small style="color:var(--ink3)">– ${esc(t.task)}</small></div>`).join('') +
+    delayed.map(t => `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><span class="st 지연">지연</span> <span class="chip pj" onclick="openProject('${t.pid}')">${esc(proj(t.pid).name || t.pid)}</span> ${esc(t.task)} (${t.progress}%, ~${esc(t.end)})</div>`).join('')) || '<div class="status">등록된 이슈가 없습니다.</div>';
+  // 추이: 주별 MD (구분별 stacked)
+  const cats = Object.keys(CAT);
+  const perWeekCat = WEEKS.map(w => { const m = {}; DATA.tasks.filter(t => t.week === w).forEach(t => { const c = proj(t.pid).category || '기타업무'; m[c] = (m[c] || 0) + t.md; }); return m; });
+  chart('chTrend', {type: 'line', data: {labels: WEEKS.map(wkLabel), datasets: cats.map(c => ({label: c, data: perWeekCat.map(m => +(m[c] || 0).toFixed(1)), borderColor: CATCOL[c], backgroundColor: CATCOL[c] + '33', fill: true, tension: .35, borderWidth: 2, pointRadius: 3, stack: 's'}))},
+    options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, scales: {y: {stacked: true, beginAtZero: true, title: {display: true, text: 'MD'}}, x: {grid: {display: false}}}, plugins: {legend: {position: 'bottom'}}}});
+  const cnt = WEEKS.map(w => { const ts = DATA.tasks.filter(t => t.week === w); return {진행: ts.filter(t => t.status === '진행').length, 완료: ts.filter(t => t.status === '완료').length, 지연: ts.filter(t => t.status === '지연').length, 예정: ts.filter(t => t.status === '예정').length}; });
+  chart('chCount', {type: 'bar', data: {labels: WEEKS.map(wkLabel), datasets: [['진행', '#3D5A73'], ['완료', '#4F7A57'], ['지연', '#C2604B'], ['예정', '#9BA6AD']].map(([k, c]) => ({label: k, data: cnt.map(x => x[k]), backgroundColor: c, borderRadius: 3, borderSkipped: false, barPercentage: .6}))},
+    options: {maintainAspectRatio: false, scales: {x: {stacked: true, grid: {display: false}}, y: {stacked: true, beginAtZero: true, ticks: {precision: 0}}}, plugins: {legend: {position: 'bottom'}}}});
+  const att = WEEKS.map(w => { const ss = DATA.staff.filter(s => s.week === w); const f = k => ss.reduce((a, s) => a + s[k], 0); return [f('trip'), f('overtime'), f('weekend'), f('leave')]; });
+  chart('chAtt', {type: 'line', data: {labels: WEEKS.map(wkLabel), datasets: [['출장', '#93A0A8'], ['야근', '#5C6773'], ['주말근무', '#262E38'], ['연차', '#C9922F']].map(([k, c], i) => ({label: k, data: att.map(a => a[i]), borderColor: c, backgroundColor: c, tension: .3, borderWidth: 2, pointRadius: 3}))},
+    options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, scales: {y: {beginAtZero: true, title: {display: true, text: '일'}}, x: {grid: {display: false}}}, plugins: {legend: {position: 'bottom'}}}});
+  // 인원별 금주 MD
+  const pm = mdByPerson(wt), ps = persons();
+  chart('chPerson', {type: 'bar', data: {labels: ps.map(p => p.name), datasets: [{label: '금주 MD', data: ps.map(p => +(pm[p.name] || 0).toFixed(1)), backgroundColor: ps.map(p => p.org === 'POSCO E&C' ? '#3D5A73' : '#7C97AC'), borderRadius: 3, borderSkipped: false}]},
+    options: {maintainAspectRatio: false, indexAxis: 'y', scales: {x: {beginAtZero: true}, y: {grid: {display: false}}}, plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => ` ${c.raw} MD · ${ps[c.dataIndex].org}`}}}}});
+  // 금주 업무 테이블 (헤더 클릭으로 오름차순/내림차순 정렬 — renderWeekTbl 참고)
+  weekTblRows = lt.filter(t => t.week === WEEK);
+  $('#weekTblSub').textContent = `${WEEK} 기준 · ${weekTblRows.length}건 · ${fmt(weekTblRows.reduce((a, t) => a + t.mdWeek, 0))} MD`;
+  renderWeekTbl();
+}
+function fillPersonSel(sel) { const cur = sel.value; sel.innerHTML = '<option value="">전체 담당자</option>' + persons().map(p => `<option ${p.name === cur ? 'selected' : ''}>${esc(p.name)}</option>`).join(''); }
+function blocks(container, projects, tasksAll, personFilter, showDone) {
+  projects = projects.filter(p => tasksAll.some(t => t.pid === p.id));  // 업무내용이 있는 프로젝트만
+  const filtered = projects.map(p => {
+    let ts = tasksAll.filter(t => t.pid === p.id);
+    if (personFilter) ts = ts.filter(t => [...split(t.enc), ...split(t.anc)].includes(personFilter));
+    if (!showDone) ts = ts.filter(t => t.status !== '완료');
+    ts.sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+    return {p, ts};
+  });
+  const range = ganttRange(filtered.flatMap(f => f.ts));  // 모든 프로젝트 블록이 같은 시간축을 공유 → 일정 막대 위치가 위아래 프로젝트끼리 정렬됨
+  container.innerHTML = filtered.map(({p, ts}, i) => {
+    const prog = projProgress(p.id, tasksAll), md = tasksAll.filter(t => t.pid === p.id).reduce((a, t) => a + t.mdCum, 0), mdw = tasksAll.filter(t => t.pid === p.id).reduce((a, t) => a + t.mdWeek, 0);
+    return `<div class="pblock"><div class="phead">${ringSvg(prog, 46, statusColor(prog))}<div><div class="t"><small>${esc(p.id)}</small>${esc(p.name)}</div><div class="m">${esc([p.client, p.address, p.start || p.end ? (p.start || '') + ' ~ ' + (p.end || '') : ''].filter(Boolean).join(' · '))}</div></div>
+      <div class="m">금주 <b>${fmt(mdw)}</b> MD</div><div class="m">누적 <b>${fmt(md)}</b> MD</div><div class="m">업무 <b>${ts.length}</b>건</div><div>${chips(p.field, p.enc, p.anc)}</div>
+      <button class="btn primary" onclick="openProject('${p.id}')">상세 보기</button></div>${gantt(ts, {range})}</div>`;
+  }).join('') || '<div class="empty">표시할 업무가 있는 프로젝트가 없습니다.</div>';
+}
+function renderPjt() {
+  const lt = latestTasks(); const pjAll = DATA.projects.filter(p => p.category === 'PJT지원');
+  const f = $('#pjtFilter'); const cur = f.value; f.innerHTML = '<option value="">전체 현장</option>' + pjAll.map(p => `<option value="${p.id}" ${p.id === cur ? 'selected' : ''}>${esc(p.id)} ${esc(p.name)}</option>`).join('');
+  fillPersonSel($('#pjtPerson'));
+  const pj = pjAll.filter(p => lt.some(t => t.pid === p.id));  // 업무가 있는 현장만
+  const short = n => n.length > 16 ? n.slice(0, 16) + '…' : n;
+  const labels = pj.map(p => short(p.name));
+  ['chPjtProg', 'chPjtMd', 'chPjtTrend'].forEach(id => $('#' + id).parentElement.style.height = Math.max(250, pj.length * 24 + 70) + 'px');
+  const md = pj.map(p => +lt.filter(t => t.pid === p.id).reduce((a, t) => a + t.mdCum, 0).toFixed(1));
+  chart('chPjtProg', {type: 'bar', data: {labels, datasets: [{data: pj.map(p => Math.round(projProgress(p.id, lt))), backgroundColor: pj.map(p => statusColor(Math.round(projProgress(p.id, lt)))), borderRadius: 3, borderSkipped: false}]}, options: {maintainAspectRatio: false, indexAxis: 'y', layout: {padding: {right: 40}}, plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => ` ${c.raw}%`}}}, scales: {x: {min: 0, max: 100, title: {display: true, text: '%'}}, y: {grid: {display: false}, ticks: {autoSkip: false, font: {size: 10}}}}}, plugins: [valueLabelPlugin('%')]});
+  chart('chPjtMd', {type: 'bar', data: {labels, datasets: [{data: md, backgroundColor: '#3D5A73', borderRadius: 3, borderSkipped: false}]}, options: {maintainAspectRatio: false, indexAxis: 'y', layout: {padding: {right: 36}}, plugins: {legend: {display: false}}, scales: {x: {beginAtZero: true, title: {display: true, text: 'MD'}}, y: {grid: {display: false}, ticks: {autoSkip: false, font: {size: 10}}}}}, plugins: [valueLabelPlugin(' MD')]});
+  const active = pj.filter(p => DATA.tasks.some(t => t.week === WEEK && t.pid === p.id && t.md > 0));
+  chart('chPjtTrend', {type: 'line', data: {labels: WEEKS.map(wkLabel), datasets: active.map((p, i) => ({label: short(p.name), data: WEEKS.map(w => +DATA.tasks.filter(t => t.week === w && t.pid === p.id).reduce((a, t) => a + t.md, 0).toFixed(1)), borderColor: COLORS[pj.indexOf(p) % COLORS.length], backgroundColor: COLORS[pj.indexOf(p) % COLORS.length], tension: .3, borderWidth: 2, pointRadius: 3}))}, options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, scales: {y: {beginAtZero: true, title: {display: true, text: 'MD'}}, x: {grid: {display: false}}}, plugins: {legend: {position: 'bottom', labels: {boxWidth: 10}}}}});
+  const pe = $('#pjtTrendEmpty'); pe.style.display = active.length ? 'none' : 'grid'; pe.textContent = '금주 투입 실적이 있는 현장이 없습니다.';
+  blocks($('#pjtBlocks'), pj.filter(p => !f.value || p.id === f.value), lt, $('#pjtPerson').value, $('#pjtDone').checked);
+}
+function renderTask() {
+  const lt = latestTasks(); const cat = $('#taskCat').value; fillPersonSel($('#taskPerson'));
+  const all = DATA.projects.filter(p => p.category !== 'PJT지원'); const pj = all.filter(p => !cat || p.category === cat);
+  const labels = all.map(p => p.id + ' ' + (p.name.length > 14 ? p.name.slice(0, 14) + '…' : p.name));
+  chart('chTaskMd', {type: 'bar', data: {labels, datasets: [{data: all.map(p => +lt.filter(t => t.pid === p.id).reduce((a, t) => a + t.mdCum, 0).toFixed(1)), backgroundColor: all.map(p => CATCOL[p.category] || '#C9922F'), borderRadius: 3, borderSkipped: false}]}, options: {maintainAspectRatio: false, indexAxis: 'y', plugins: {legend: {display: false}}, scales: {x: {beginAtZero: true, title: {display: true, text: 'MD'}}, y: {grid: {display: false}}}}});
+  chart('chTaskTrend', {type: 'line', data: {labels: WEEKS.map(wkLabel), datasets: all.map((p, i) => ({label: p.id, data: WEEKS.map(w => +DATA.tasks.filter(t => t.week === w && t.pid === p.id).reduce((a, t) => a + t.md, 0).toFixed(1)), borderColor: COLORS[i % COLORS.length], backgroundColor: COLORS[i % COLORS.length], tension: .3, borderWidth: 2, pointRadius: 2}))}, options: {maintainAspectRatio: false, interaction: {mode: 'index', intersect: false}, scales: {y: {beginAtZero: true}, x: {grid: {display: false}}}, plugins: {legend: {position: 'bottom'}}}});
+  blocks($('#taskBlocks'), pj, lt, $('#taskPerson').value, $('#taskDone').checked);
+}
+function renderStaff() {
+  const lt = latestTasks(), wt = weekTasks(), ws = weekStaff(), ps = persons();
+  const orgs = ['POSCO E&C', 'POSCO A&C'];
+  chart('chOrgTrend', {type: 'bar', data: {labels: WEEKS.map(wkLabel), datasets: orgs.map((o, i) => ({label: o, data: WEEKS.map(w => { const m = mdByPerson(DATA.tasks.filter(t => t.week === w)); return +ps.filter(p => p.org === o).reduce((a, p) => a + (m[p.name] || 0), 0).toFixed(1); }), backgroundColor: i ? '#7C97AC' : '#3D5A73', borderRadius: 3, borderSkipped: false, barPercentage: .6}))},
+    options: {maintainAspectRatio: false, scales: {x: {stacked: true, grid: {display: false}}, y: {stacked: true, beginAtZero: true, title: {display: true, text: 'MD'}}}, plugins: {legend: {position: 'bottom'}}}});
+  const [accStart, accEnd] = accBounds();
+  const cum = mdByPerson(DATA.tasks.filter(t => t.week <= WEEK && t.week >= accStart && t.week <= accEnd));
+  chart('chPersonCum', {type: 'bar', data: {labels: ps.map(p => p.name), datasets: [{data: ps.map(p => +(cum[p.name] || 0).toFixed(1)), backgroundColor: ps.map(p => p.org === 'POSCO E&C' ? '#3D5A73' : '#7C97AC'), borderRadius: 3, borderSkipped: false}]}, options: {maintainAspectRatio: false, indexAxis: 'y', plugins: {legend: {display: false}}, scales: {x: {beginAtZero: true, title: {display: true, text: 'MD'}}, y: {grid: {display: false}}}}});
+  const dayCell = (code, small) => { const codes = String(code || '').split(/[,\/ ]/).filter(Boolean); if (!codes.length) return `<td class="dc">·</td>`;
+    return `<td class="dc" title="${esc(codes.map(c => (ATT[c[0]] || [c])[0]).join(', '))}">${codes.map(c => `<span class="dcode" style="background:${(ATT[c[0]] || ['', '#93A0A8'])[1]}">${esc(c[0])}</span>`).join('')}</td>`; };
+  const wkDates = w => { const d = dparse(w); return DAYN.map((n, i) => { const x = new Date(d.getTime() + i * 864e5); return `${n}<br><small style="color:var(--ink3)">${x.getMonth() + 1}/${x.getDate()}</small>`; }); };
+  $('#attWeekSub').textContent = `${WEEK || ''} 주 · 인원 시트 순서` + ((DATA.unmatched || []).length ? ` · 명단 외 이름(미표시): ${DATA.unmatched.join(', ')}` : '');
+  $('#attWeek').innerHTML = WEEK ? `<table class="heat"><thead><tr><th>이름</th><th>소속</th><th>직급</th>${wkDates(WEEK).map((h, i) => `<th style="text-align:center;min-width:90px;${i >= 5 ? 'color:var(--warntext)' : ''}">${h}</th>`).join('')}<th>출장</th><th>야근</th><th>주말</th><th>연차</th><th>비고</th></tr></thead><tbody>` +
+    ps.map(p => { const s = ws.find(x => x.name === p.name) || {days: []}; return `<tr><td style="text-align:left;white-space:nowrap"><b>${esc(p.name)}</b></td><td style="color:var(--ink2)">${p.org.replace('POSCO ', '')}</td><td style="color:var(--ink3)">${esc(p.rank || '')}</td>${DAYK.map((k, i) => dayCell((s.days || [])[i]).replace('<td class="dc"', `<td class="dc" style="${i >= 5 ? 'background:rgba(245,158,11,.06)' : ''}"`)).join('')}<td>${s.trip || '·'}</td><td>${s.overtime || '·'}</td><td>${s.weekend || '·'}</td><td>${s.leave || '·'}</td><td style="text-align:left;color:var(--ink3);font-size:11px">${esc(s.note || '')}</td></tr>`; }).join('') + '</tbody></table>' + `<div class="legend" style="margin-top:8px">${Object.entries(ATT).map(([k, [n, c]]) => `<span><i style="background:${c}"></i>${k} = ${n}</span>`).join('')}</div>` : '';
+  const pm = mdByPerson(wt);
+  const card = p => { const s = ws.find(x => x.name === p.name) || {}; const my = lt.filter(t => [...split(t.enc), ...split(t.anc)].includes(p.name));
+    const pids = s.projects ? split(s.projects) : [...new Set(my.map(t => t.pid))]; const active = my.filter(t => t.status !== '완료').length;
+    const row = (l, k, v) => `<span>${l}</span><div class="bar"><i class="${k}" style="width:${Math.min(100, v / 5 * 100)}%"></i></div><b>${v}</b>`;
+    return `<div class="person ${p.org === 'POSCO A&C' ? 'anc' : ''}"><div class="nm"><b>${esc(p.name)}</b><span>${esc(p.rank || '')}</span><em>${fmt(pm[p.name] || 0)} MD</em></div>
+      <div class="pjs">${pids.map(id => `<span class="chip pj" onclick="openProject('${esc(id)}')">${esc(proj(id).name.length > 14 ? proj(id).name.slice(0, 14) + '…' : proj(id).name)}</span>`).join('') || '<span class="status">담당 프로젝트 없음</span>'}<div class="status" style="margin-top:3px">담당 업무 ${my.length}건 (진행 ${active})</div></div>
+      <div class="att">${row('출장', 'trip', s.trip || 0)}${row('야근', 'ot', s.overtime || 0)}${row('주말', 'we', s.weekend || 0)}${row('연차', 'lv', s.leave || 0)}</div>
+      <div class="dstrip">${DAYN.map((n, i) => { const c = String((s.days || [])[i] || '').split(/[,\/ ]/).filter(Boolean); return `<div class="d ${i >= 5 ? 'we' : ''}" title="${esc(c.map(x => (ATT[x[0]] || [x])[0]).join(', '))}"><span>${n}</span>${c.length ? c.map(x => `<i style="background:${(ATT[x[0]] || ['', '#93A0A8'])[1]}">${esc(x[0])}</i>`).join('') : '<i class="none"></i>'}</div>`; }).join('')}</div>${s.note ? `<div class="status" style="margin-top:5px">※ ${esc(s.note)}</div>` : ''}</div>`; };
+  const enc = ps.filter(p => p.org === 'POSCO E&C'), anc = ps.filter(p => p.org === 'POSCO A&C');
+  $('#encSub').textContent = `${enc.length}명 · 금주 ${fmt(enc.reduce((a, p) => a + (pm[p.name] || 0), 0))} MD`; $('#ancSub').textContent = `${anc.length}명 · 금주 ${fmt(anc.reduce((a, p) => a + (pm[p.name] || 0), 0))} MD`;
+  $('#peopleEnc').innerHTML = enc.map(card).join('') || '<div class="empty">인력현황 시트에 인원을 입력하세요.</div>'; $('#peopleAnc').innerHTML = anc.map(card).join('') || '<div class="empty">인력현황 시트에 인원을 입력하세요.</div>';
+  // '주차별 요일 근태 현황표': 전체 주차를 다 늘어놓으면 데이터가 쌓일수록 표가 한없이 넓어지므로, 선택한 월의 주차만 표시
+  const attMonths = [...new Set(WEEKS.map(w => w.slice(0, 7)))];  // 실제 데이터가 있는 월(YYYY-MM) 목록
+  if (!ATT_MONTH || !attMonths.includes(ATT_MONTH)) ATT_MONTH = attMonths[attMonths.length - 1] || null;
+  const attSel = $('#attMonthSel');
+  attSel.innerHTML = attMonths.map(mo => `<option value="${mo}" ${mo === ATT_MONTH ? 'selected' : ''}>${mo.slice(0, 4)}년 ${+mo.slice(5, 7)}월</option>`).join('');
+  const attWeeks = WEEKS.filter(w => w.slice(0, 7) === ATT_MONTH);
+  $('#attTable').innerHTML = `<table class="heat"><thead><tr><th>이름</th><th>소속</th>${attWeeks.map(w => `<th colspan="7" style="text-align:center;border-left:1px solid var(--line)">${wkLabel(w)}</th>`).join('')}</tr><tr><th></th><th></th>${attWeeks.map(() => DAYN.map((n, i) => `<th style="text-align:center;${i === 0 ? 'border-left:1px solid var(--line)' : ''}${i >= 5 ? ';color:var(--warntext)' : ''}">${n}</th>`).join('')).join('')}</tr></thead><tbody>` +
+    ps.map(p => `<tr><td style="text-align:left;white-space:nowrap"><b>${esc(p.name)}</b></td><td style="text-align:left;white-space:nowrap;color:var(--ink2)">${p.org.replace('POSCO ', '')}</td>${attWeeks.map(w => { const s = DATA.staff.find(x => x.name === p.name && x.week === w) || {days: []}; return DAYK.map((k, i) => dayCell((s.days || [])[i]).replace('<td class="dc"', i === 0 ? '<td class="dc" style="border-left:1px solid var(--line)"' : '<td class="dc"')).join(''); }).join('')}</tr>`).join('') +
+    (attWeeks.length ? '' : `<tr><td colspan="2" style="text-align:left;color:var(--ink3)">선택한 월에 등록된 주차가 없습니다.</td></tr>`) + '</tbody></table>' +
+    `<div class="legend" style="margin-top:8px">${Object.entries(ATT).map(([k, [n, c]]) => `<span><i style="background:${c}"></i>${k} ${n}</span>`).join('')}</div>`;
+}
+on('#attMonthSel', 'onchange', e => { ATT_MONTH = e.target.value; renderStaff(); });
+function render(view) {
+  view = view || document.querySelector('.tab.active').dataset.v;
+  renderHeader();
+  ({overview: renderOverview, pjt: renderPjt, task: renderTask, staff: renderStaff, edit: renderEditAll})[view]();
+}
+$('#weekSel').onchange = e => { WEEK = e.target.value; render(); };
+['pjtFilter', 'pjtPerson', 'pjtDone'].forEach(id => $('#' + id).onchange = renderPjt);
+['taskCat', 'taskPerson', 'taskDone'].forEach(id => $('#' + id).onchange = renderTask);
+
+/* ============================================================ Excel 로드 (브라우저) – 헤더명 기준 파싱 (v1/v2 양식 모두 지원) */
+const OUTK = {프로젝트개요: 'projects', 업무현황: 'tasks', 인력현황: 'staff', 인원: 'members'};
+const HEADMAP = {  // 헤더 포함 문자열 → 키 (앞에서부터 첫 매치)
+  프로젝트개요: [['프로젝트ID','id'],['프로젝트명','name'],['구분','category'],['발주처','client'],['위치','address'],['위도','lat'],['경도','lng'],['규모','scale'],['착공','start'],['시작','start'],['준공','end'],['종료','end'],['BIM적용','scope'],['BIM섹션','enc'],['건축BIM','enc'],['현장담당','field'],['A&C','anc'],['IFC경로','ifcPath'],['IFC파일','ifc'],['프로젝트개요','overview'],['개요','overview'],['이슈','issue']],
+  업무현황: [['주차','week'],['프로젝트ID','pid'],['업무항목','task'],['세부내용','detail'],['시작','start'],['종료','end'],['진행률','progress'],['BIM섹션','enc'],['건축BIM','enc'],['담당자(E&C)','enc'],['현장담당','field'],['A&C','anc'],['MD','md'],['상태','status'],['이슈','issue'],['비고','issue']],
+  인원: [['이름','name'],['성명','name'],['소속','org'],['구분','org'],['회사','org'],['직급','rank'],['직위','rank'],['비고','note']],
+  인력현황: [['주차','week'],['날짜','week'],['이름','name'],['소속','org'],['직급','rank'],['담당프로젝트','projects'],['출장','trip'],['야근','overtime'],['주말','weekend'],['연차','leave'],['비고','note'],['월','mon'],['화','tue'],['수','wed'],['목','thu'],['금','fri'],['토','sat'],['일','sun']]};
+function headerKeys(sheet, header) {
+  const hasSection = header.some(h => /BIM섹션|건축BIM/.test(String(h || '')));
+  return header.map(h => { h = String(h || '').replace(/\s/g, ''); if (!h) return null;
+    if (sheet === '인력현황') { const d = DAYN.indexOf(h.replace(/\(|\)|요일/g, '')); if (d >= 0) return DAYK[d]; }
+    for (const [pat, key] of HEADMAP[sheet]) { if (h.includes(pat)) { if (key === 'field' && !hasSection) return 'enc'; return key; } } return null; });
+}
+function cellVal(v, k) {
+  if (v == null || v === '' || v === '-') return null;
+  if (['week', 'start', 'end'].includes(k)) {
+    const iso = d => d.toISOString().slice(0, 10);  // UTC 기준 → 시간대와 무관
+    if (typeof v === 'number') return iso(new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 864e5));  // Excel 시리얼
+    if (v instanceof Date) return iso(new Date(v.getTime() - v.getTimezoneOffset() * 60000));
+    const m = String(v).trim().match(/(\d{4})[.\-\/년 ]+(\d{1,2})[.\-\/월 ]+(\d{1,2})/); return m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : String(v).trim().slice(0, 10); }
+  if (['lat', 'lng', 'progress', 'md', 'trip', 'overtime', 'weekend', 'leave'].includes(k)) { const n = parseFloat(v); if (!isNaN(n)) return n; return ['trip', 'overtime', 'weekend', 'leave'].includes(k) && /^([oOvVxX○●√✓]|예|유)$/.test(String(v).trim()) ? 1 : null; }
+  return String(v).trim();
+}
+function parseWorkbook(wb, out) {
+  for (const sheet of Object.keys(OUTK)) {
+    const alias = {인원: ['인원', '명단', '기본인원', '인원리스트', '인력리스트']};
+    const ws = wb.Sheets[sheet] || wb.Sheets[Object.keys(wb.Sheets).find(n => { const k = n.replace(/\s/g, ''); return k !== '인력현황' && (alias[sheet] || [sheet]).some(a => k.includes(a)); }) || '']; if (!ws) continue;
+    const rows = XLSX.utils.sheet_to_json(ws, {header: 1, blankrows: false}); if (!rows.length) continue;
+    const keys = headerKeys(sheet, rows[0]);
+    rows.slice(1).forEach(r => {
+      const rec = {}; keys.forEach((k, j) => { if (k && rec[k] == null) rec[k] = cellVal(r[j], k); });
+      const s0 = String(r[0] || ''); if (['YYYY', '고유', '해당 주', '기본 인원', '인원 시트'].some(k => s0.includes(k))) return;  // 안내 행
+      if (sheet === '프로젝트개요') { if (!rec.name && !rec.id) return; if (!rec.id) rec.id = rec.name; if (!rec.category) rec.category = 'PJT지원'; }
+      else if (sheet === '업무현황') { if (!rec.week || !rec.task) return; if (!rec.pid) rec.pid = '(미지정)'; }
+      else if (sheet === '인원') { if (!rec.name) return; }
+      else if (!rec.week || !rec.name) return;
+      out[OUTK[sheet]].push(rec);
+    });
+  }
+}
+function warnDuplicateProjectIds(list) {
+  // 프로젝트개요 시트(들)에 같은 프로젝트ID가 두 행 이상 있으면, 바로 아래 merge()가 "같은 ID = 같은 프로젝트"로 보고
+  // 마지막 행 값만 남기고 앞선 행은 조용히 버린다. 이게 "새 프로젝트를 추가했더니 기존 프로젝트 정보가 바뀌어 보이고,
+  // 그 프로젝트에 연결된 업무현황의 프로젝트명이 갑자기 달라지는" 오류의 대표적인 원인이다 — 여러 담당자가 나눠 쓰던
+  // 파일을 합치거나, 마스터 목록을 옮겨 적다가 이미 쓰는 ID를 다시 입력하면 특히 생기기 쉽다.
+  const byId = new Map();
+  list.forEach(r => { const id = String(r.id || '').trim(); if (!id) return; if (!byId.has(id)) byId.set(id, []); byId.get(id).push(r); });
+  const dups = [...byId.entries()].filter(([, rows]) => rows.length > 1);
+  if (!dups.length) return;
+  const detail = dups.map(([id, rows]) => `· ${id} : ${rows.map(r => `'${r.name || id}'`).join(' → ')} (마지막 값만 반영됨)`).join('\n');
+  alert(`⚠ 프로젝트개요 시트에 같은 프로젝트ID가 여러 행 있습니다.\n\n${detail}\n\n이 상태로 반영하면 ID가 겹친 프로젝트마다 목록의 마지막 행 값만 남고 나머지 행 값은 사라지며, 그 ID에 연결된 업무현황의 프로젝트명도 그 마지막 값으로 바뀌어 보입니다.\nExcel에서 위 ID들의 중복 행을 확인해 하나로 합치거나 ID를 다르게 입력한 뒤 다시 연결해 주세요.`);
+}
+async function loadExcelFiles(files, opts = {}) {  // files: File[]  – 여러 파일 병합, 기존 데이터는 교체
+  const out = {projects: [], tasks: [], staff: [], members: []}; const names = [];
+  for (const f of files) { try { parseWorkbook(XLSX.read(await f.arrayBuffer(), {cellDates: false}), out); names.push(f.name); } catch (e) { alert(`${f.name} 읽기 실패: ${e.message}`); } }
+  if (!out.projects.length && !out.tasks.length && !out.staff.length) { alert('프로젝트개요 / 업무현황 / 인력현황 시트를 찾지 못했습니다.'); return; }
+  warnDuplicateProjectIds(out.projects);  // (2026-09 근본 수정) 프로젝트개요 시트에 같은 ID가 여러 행 있으면 아래 merge()가 마지막 행만 남기고 나머지를 조용히 버렸다 — 반영 전에 먼저 알려준다
+  const merge = (arr, kf) => [...new Map(arr.map(r => [kf(r), r])).values()];
+  // 업무현황 병합키: '수행과제'/'기타업무'처럼 업무항목이 같은 값을 재사용하고 세부내용이 비어있거나 겹치는 경우가 있어
+  // (주차,프로젝트,업무항목,세부내용)만으로는 서로 다른 두 업무가 같은 키로 충돌해 하나가 덮어써져 사라질 수 있다.
+  // 일정/담당자/진행률/MD/상태까지 키에 포함해 서로 다른 업무는 절대 같은 키가 되지 않도록 한다.
+  const taskMergeKey = r => [r.week, r.pid, r.task, r.detail || '', r.start || '', r.end || '', r.enc || '', r.anc || '', r.progress ?? '', r.md ?? '', r.status || ''].join('|');
+  DATA = {projects: merge(out.projects, r => r.id), tasks: merge(out.tasks, taskMergeKey), staff: merge(out.staff, r => [r.week, r.name, r.trip, r.overtime, r.weekend, r.leave, r.note].join('|')), members: merge(out.members, r => r.name)};
+  prepare(); render();
+  const src = names.join(', ') + ' @ ' + new Date().toLocaleString('ko-KR', {hour12: false});
+  try { localStorage.setItem('bimdash.data', JSON.stringify(DATA)); localStorage.setItem('bimdash.src', src); localStorage.setItem('bimdash.savedAt', String(Date.now())); } catch (e) {}
+  setSrcStatus(opts.auto ? '자동 갱신' : '');
+  toast(`${opts.auto ? '변경 감지 → ' : ''}Excel 반영 완료: 프로젝트 ${DATA.projects.length} · 업무 ${DATA.tasks.length} · 인력 ${DATA.staff.length}`);
+}
+function toast(msg) { let t = $('#toast'); if (!t) { t = document.createElement('div'); t.id = 'toast'; t.style.cssText = 'position:fixed;right:20px;bottom:20px;background:#FFFFFF;border:1px solid #3D5A73;color:#262E38;padding:10px 16px;border-radius:10px;z-index:300;font-size:12.5px;box-shadow:0 6px 20px rgba(43,52,64,.18);transition:opacity .4s'; document.body.appendChild(t); } t.textContent = msg; t.style.opacity = 1; clearTimeout(t._h); t._h = setTimeout(() => t.style.opacity = 0, 4000); }
+function setSrcStatus(mode) {
+  // (2026-09 개선) '브라우저 로드'(=이 컴퓨터에만 저장된 개인 편집본) 상태를 눈에 띄는 경고 배지로 바꾸고, 작은
+  // 텍스트 링크였던 초기화 버튼을 실제 버튼으로 키웠다 — 여러 사람이 각자 '데이터 입력' 탭에 입력하고도 서로의
+  // 화면에 반영이 안 되는 문제의 상당수가 "지금 내가 보는 게 공유 파일이 아니라 내 개인 편집본"이라는 사실을
+  // 알아채지 못해서 생기므로, 상태를 항상 눈에 잘 띄게 보여주는 것 자체가 예방책이다.
+  const ls = localStorage.getItem('bimdash.src');
+  if (sd.handle) {  // (2026-09 신규) 실시간 공유 연결 상태가 있으면 다른 어떤 표시보다 우선해서 보여준다 — 이게 지금 화면의 진짜 현재 상태이기 때문
+    if (sd.readOnly) {  // (2026-09 신규) 읽기 전용 보기 — 편집 권한이 없는(전사 열람 등) 사람용, 절대 쓰지 않고 자동 새로고침만 한다
+      $('#srcStatus').innerHTML = `<span class="sdbadge ro">👁 <b>실시간 공유 보기 중(읽기 전용)</b> ${esc(sd.handle.name || '')} · 자동 새로고침 ${sd.watching ? '<span style="color:var(--cyan)">●</span>' : '<span style="color:var(--warntext)">○ (재연결 필요)</span>'}${sd.lastSyncAt ? ' · ' + esc(sd.lastSyncAt) : ''} <a href="#" id="unlinkSd">(연결 해제)</a></span>`;
+    } else {
+      $('#srcStatus').innerHTML = `<span class="sdbadge">🔗 <b>실시간 공유 연결됨</b> ${esc(sd.handle.name || '')} · 자동 동기화 ${sd.watching ? '<span style="color:var(--good)">●</span>' : '<span style="color:var(--warntext)">○ (재연결 필요)</span>'}${sd.lastSyncAt ? ' · ' + esc(sd.lastSyncAt) : ''} <a href="#" id="unlinkSd">(연결 해제)</a></span>`;
+    }
+    const us = $('#unlinkSd'); if (us) us.onclick = async e => { e.preventDefault(); if (!confirm('연결을 해제할까요? (이 컴퓨터의 데이터는 그대로 남고, 앞으로는 자동으로 갱신·반영되지 않습니다)')) return; sd.handle = null; sd.readOnly = false; sd.watching = false; clearInterval(sd.timer); await idb.set('sharedData', null); await idb.set('sharedDataRO', false); setSrcStatus(); };
+    return;
+  }
+  const linked = xl.handles.length ? `<b>연결된 Excel</b> ${esc(xl.handles.map(h => h.name).join(', '))} · 변경 자동 반영 ${xl.watching ? '<span style="color:var(--good)">●</span>' : '<span style="color:var(--warntext)">○ (재연결 필요)</span>'} ${ls ? '· ' + esc(ls.split(' @ ')[1] || '') : ''} <a href="#" id="unlinkXl">(연결 해제)</a>` : null;
+  $('#srcStatus').innerHTML = linked || (ls
+    ? `<span class="srcbadge">⚠ <b>나만 보이는 개인 편집본</b> — ${esc(ls)} <button class="btn" id="resetLs" type="button" title="이 편집 내용을 버리고 공유 파일(data/data.js)의 최신 내용으로 되돌립니다">공유 데이터로 새로고침</button></span>`
+    : (window.DASH_DATA ? `데이터: <b>data/data.js</b>(공유 파일) (${esc(window.DASH_DATA.generated || '')}, ${(window.DASH_DATA.sources || []).length}개 파일)` : '데이터 없음 – Excel을 불러오세요'));
+  const r = $('#resetLs'); if (r) r.onclick = e => { e.preventDefault(); localStorage.removeItem('bimdash.data'); localStorage.removeItem('bimdash.src'); location.reload(); };
+  const u = $('#unlinkXl'); if (u) u.onclick = async e => { e.preventDefault(); xl.handles = []; xl.watching = false; await idb.set('xlsx', []); setSrcStatus(); };
+}
+/* ---- Excel 파일 연결(File System Access) + 변경 감시 → 저장 즉시 자동 반영 */
+const xl = {handles: [], stamps: {}, watching: false, timer: null};
+async function linkExcel() {
+  if (window.showOpenFilePicker) {
+    try { const hs = await showOpenFilePicker({multiple: true, types: [{description: 'Excel', accept: {'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx', '.xlsm']}}]});
+      xl.handles = hs; await idb.set('xlsx', hs); await reloadLinked(false); startWatch(); } catch (e) { if (e.name !== 'AbortError') alert(e.message); }
+  } else $('#fileExcel').click();
+}
+async function reloadLinked(auto) {
+  const files = []; for (const h of xl.handles) { try { const f = await h.getFile(); xl.stamps[h.name] = f.lastModified + ':' + f.size; files.push(f); } catch (e) { console.warn(e); } }
+  if (files.length) await loadExcelFiles(files, {auto});
+}
+function startWatch() {
+  xl.watching = true; clearInterval(xl.timer);
+  xl.timer = setInterval(async () => {
+    if (!xl.handles.length) return; let changed = false;
+    for (const h of xl.handles) { try { const f = await h.getFile(); if (xl.stamps[h.name] !== f.lastModified + ':' + f.size) changed = true; } catch (e) { /* 파일 잠김(저장 중) 등은 다음 주기에 */ } }
+    if (changed) await reloadLinked(true);
+  }, 3000);
+  setSrcStatus();
+}
+async function restoreExcel() {
+  if (!window.showOpenFilePicker) return;
+  try { const hs = await idb.get('xlsx'); if (!hs || !hs.length) return; xl.handles = hs;
+    const ok = (await Promise.all(hs.map(h => h.queryPermission({mode: 'read'})))).every(p => p === 'granted');
+    if (ok) { await reloadLinked(false); startWatch(); }
+    else { setSrcStatus(); $('#btnExcelLink').textContent = 'Excel 재연결'; $('#btnExcelLink').onclick = async () => { for (const h of hs) await h.requestPermission({mode: 'read'}); $('#btnExcelLink').textContent = 'Excel 파일 연결'; $('#btnExcelLink').onclick = linkExcel; await reloadLinked(false); startWatch(); }; }
+  } catch (e) { console.warn(e); }
+}
+$('#btnExcelLink').onclick = linkExcel;
+$('#fileExcel').onchange = e => { loadExcelFiles([...e.target.files]); e.target.value = ''; };
+
+/* ---- (2026-09 신규) 실시간 공유 연결 — NAS 등의 공유 JSON 파일 하나에 팀원 전체가 연결해 서로의 입력을 자동으로 반영한다.
+   기존 "Excel 파일 연결"은 엑셀을 다시 취합해 읽어오기만 할 뿐 이 화면에서 입력한 내용을 그 파일에 "쓰지는" 않았다 —
+   그래서 각자 데이터 입력 탭에 입력한 내용은 항상 이 브라우저의 localStorage에만 남고 서로에게 보이지 않았다(사용자 신고 사항).
+   이 기능은 그 반대다: 이 화면에서 무엇을 고치든(추가/수정/삭제) 즉시 공유 파일에 함께 저장하고, 동시에 그 공유 파일을
+   주기적으로(3초) 다시 읽어와 다른 사람이 그 사이 저장한 내용도 이 화면에 반영한다 — 편집을 "쓰기도 하는" 첫 기능이므로,
+   두 사람이 정확히 같은 레코드를 거의 동시에 고치는 극히 드문 경우에는 나중에 저장된 쪽이 반영된다(그 외의 모든 경우 —
+   서로 다른 프로젝트/업무/인원을 고치는 보통의 경우 — 는 양쪽 내용이 전부 안전하게 합쳐진다). */
+const sd = {handle: null, watching: false, timer: null, lastStamp: null, lastSyncAt: null, syncing: false, pendingWrite: false, readOnly: false};
+const SD_KEY = {  // 병합 시 "같은 레코드"를 식별하는 값 — 화면에 보이는 값이 아니라 내부적으로 안정적으로 유지되는 키여야 한다
+  projects: p => String(p.id || ''),
+  tasks: t => t._tid || '',
+  staff: s => String(s.week || '') + '|' + String(s.name || ''),
+  members: m => String(m.name || '')
+};
+function sdNewTid() { return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function sdEnsureIds() { DATA.tasks.forEach(t => { if (!t._tid) t._tid = sdNewTid(); }); }  // 옛날 data.js/Excel에서 온 업무는 이 기능을 처음 쓸 때 한 번만 안정적인 키를 부여받는다
+function sdTombstone(coll, key) {  // 삭제된 레코드를 "무덤(삭제시각)"으로 남겨, 다른 사람의 화면에서 병합할 때 되살아나지 않도록 한다
+  if (!key) return;
+  DATA._tomb = DATA._tomb || {projects: {}, tasks: {}, staff: {}, members: {}};
+  if (!DATA._tomb[coll]) DATA._tomb[coll] = {};
+  DATA._tomb[coll][key] = Date.now();
+}
+function sdMergeTomb(a, b) { const out = {...(a || {})}; for (const k in (b || {})) { if (out[k] == null || b[k] > out[k]) out[k] = b[k]; } return out; }
+function sdMergeCollection(localArr, remoteArr, keyFn, tombLocal, tombRemote) {
+  // LWW(Last-Write-Wins) 병합: 레코드든 삭제(무덤)든, 키마다 시각(_ts)이 가장 나중인 쪽이 최종 채택된다.
+  const byLocal = new Map(localArr.map(r => [keyFn(r), r])), byRemote = new Map(remoteArr.map(r => [keyFn(r), r]));
+  const keys = new Set([...byLocal.keys(), ...byRemote.keys(), ...Object.keys(tombLocal || {}), ...Object.keys(tombRemote || {})]);
+  const out = [];
+  for (const k of keys) {
+    if (!k) continue;
+    const L = byLocal.get(k), R = byRemote.get(k), cands = [];
+    if (L) cands.push({ts: L._ts || 0, rec: L});
+    if (R) cands.push({ts: R._ts || 0, rec: R});
+    if (tombLocal && tombLocal[k] != null) cands.push({ts: tombLocal[k], rec: null});
+    if (tombRemote && tombRemote[k] != null) cands.push({ts: tombRemote[k], rec: null});
+    cands.sort((a, b) => b.ts - a.ts);
+    if (cands[0] && cands[0].rec) out.push(cands[0].rec);
+  }
+  return out;
+}
+function sdMergeInto(remote) {  // remote(방금 읽은 공유 파일 내용)를 지금의 DATA와 합쳐 DATA를 갱신한다
+  sdEnsureIds();
+  const rt = remote._tomb || {}, lt = DATA._tomb || {};
+  DATA.projects = sdMergeCollection(DATA.projects, remote.projects || [], SD_KEY.projects, lt.projects, rt.projects);
+  DATA.tasks = sdMergeCollection(DATA.tasks, remote.tasks || [], SD_KEY.tasks, lt.tasks, rt.tasks);
+  DATA.staff = sdMergeCollection(DATA.staff, remote.staff || [], SD_KEY.staff, lt.staff, rt.staff);
+  DATA.members = sdMergeCollection(DATA.members, remote.members || [], SD_KEY.members, lt.members, rt.members);
+  DATA._tomb = {projects: sdMergeTomb(lt.projects, rt.projects), tasks: sdMergeTomb(lt.tasks, rt.tasks), staff: sdMergeTomb(lt.staff, rt.staff), members: sdMergeTomb(lt.members, rt.members)};
+}
+function sdSnapshot() {  // 공유 파일에 저장할 스냅샷 — 이 브라우저 세션에서만 의미있는 _rid/_lastId 는 제외해 파일을 가볍게 유지
+  const strip = o => { const c = {...o}; delete c._rid; delete c._lastId; return c; };
+  return {projects: DATA.projects.map(strip), tasks: DATA.tasks.map(strip), staff: DATA.staff.map(strip), members: DATA.members.map(strip), _tomb: DATA._tomb || {projects: {}, tasks: {}, staff: {}, members: {}}, _savedAt: Date.now()};
+}
+async function sdWrite() {  // 지금 화면(DATA)을 공유 파일에 저장 — 저장 직전에 파일을 다시 읽어 그 사이 다른 사람이 저장한 내용과 먼저 합친 뒤 쓴다
+  if (!sd.handle) return;
+  if (sd.syncing) { sd.pendingWrite = true; return; }
+  sd.syncing = true;
+  try {
+    sdEnsureIds();
+    let remote = null;
+    try { const f = await sd.handle.getFile(); const text = await f.text(); if (text.trim()) remote = JSON.parse(text); } catch (e) { /* 아직 빈 파일이거나 읽기 실패 — 지금 내용 그대로 새로 씀 */ }
+    if (remote) sdMergeInto(remote);
+    prepare();
+    const w = await sd.handle.createWritable();
+    await w.write(JSON.stringify(sdSnapshot()));
+    await w.close();
+    const f2 = await sd.handle.getFile(); sd.lastStamp = f2.lastModified + ':' + f2.size;
+    sd.lastSyncAt = new Date().toLocaleString('ko-KR', {hour12: false});
+    saveLocal('공유 데이터'); render(); setSrcStatus();
+  } catch (e) { console.warn('공유 파일 저장 실패', e); toast('⚠ 실시간 공유 저장 실패 — ' + e.message); }
+  sd.syncing = false;
+  if (sd.pendingWrite) { sd.pendingWrite = false; sdWrite(); }
+}
+async function sdPollAndLoad(showToast) {  // 3초마다 공유 파일이 바뀌었는지 확인 — 내가 방금 쓴 것과 같으면 건너뛴다(무한 반복 방지)
+  if (!sd.handle || sd.syncing) return;
+  if (sd.readOnly) { await sdLoadOnly(showToast); return; }  // (2026-09 신규) 읽기 전용 연결이면 병합/쓰기 없이 그대로 반영만 한다
+  try {
+    const f = await sd.handle.getFile(), stamp = f.lastModified + ':' + f.size;
+    if (stamp === sd.lastStamp) return;
+    sd.lastStamp = stamp;
+    const text = await f.text(); if (!text.trim()) return;
+    sdMergeInto(JSON.parse(text));
+    prepare(); saveLocal('공유 데이터'); render(); setSrcStatus();
+    sd.lastSyncAt = new Date().toLocaleString('ko-KR', {hour12: false});
+    if (showToast) toast('다른 사람이 저장한 내용을 반영했습니다');
+  } catch (e) { console.warn(e); }
+}
+function sdStartWatch() { sd.watching = true; clearInterval(sd.timer); sd.timer = setInterval(() => sdPollAndLoad(true), 3000); setSrcStatus(); }
+async function sdConnectAfterPick() {  // 연결 직후: 공유 파일에 이미 있던 내용을 먼저 반영하고, 지금 내가 가진 내용(있다면)까지 합쳐 즉시 써서 서로 보이게 한다
+  let remote = null;
+  try { const f = await sd.handle.getFile(); const text = await f.text(); if (text.trim()) remote = JSON.parse(text); sd.lastStamp = f.lastModified + ':' + f.size; } catch (e) {}
+  if (remote) { sdMergeInto(remote); prepare(); saveLocal('공유 데이터'); render(); }
+  await sdWrite();
+  sdStartWatch();
+  toast('실시간 공유 연결 완료 — 이제 서로의 입력이 자동으로 반영됩니다');
+}
+async function linkSharedData() {
+  if (!window.showOpenFilePicker && !window.showSaveFilePicker) { alert('이 브라우저는 실시간 공유 연결 기능을 지원하지 않습니다 (Chrome/Edge 필요).'); return; }
+  try {
+    let handle;
+    const openExisting = window.showOpenFilePicker && confirm('실시간 공유 연결 (편집 가능)\n\n확인(OK): 다른 팀원이 이미 만들어둔 공유 파일에 연결합니다.\n취소: 이번에 처음 만듭니다 (제일 먼저 연결하는 한 사람만 이렇게 하세요).\n\n※ 편집 권한(예: OneDrive/SharePoint 폴더의 "편집" 권한)이 있는 분만 사용하세요. 읽기 권한만 있다면 옆의 "실시간 공유 보기(읽기전용)"를 사용하세요.');
+    if (openExisting) {
+      [handle] = await showOpenFilePicker({types: [{description: 'BIM 공유 데이터', accept: {'application/json': ['.json']}}]});
+    } else if (window.showSaveFilePicker) {
+      handle = await showSaveFilePicker({suggestedName: '공유데이터.json', types: [{description: 'BIM 공유 데이터', accept: {'application/json': ['.json']}}]});
+    } else { alert('이 브라우저에서는 기존 공유 파일에 연결하는 것만 가능합니다 (새로 만들기 미지원) — 다른 팀원에게 먼저 만들어 달라고 요청하세요.'); return; }
+    if ((await handle.queryPermission({mode: 'readwrite'})) !== 'granted' && (await handle.requestPermission({mode: 'readwrite'})) !== 'granted') { alert('쓰기 권한을 허용해야 실시간 공유 연결을 사용할 수 있습니다. 편집 권한이 없다면 "실시간 공유 보기(읽기전용)"를 사용하세요.'); return; }
+    sd.handle = handle; sd.readOnly = false; await idb.set('sharedData', handle); await idb.set('sharedDataRO', false);
+    await sdConnectAfterPick();
+  } catch (e) { if (e.name !== 'AbortError') alert(e.message); }
+}
+/* ---- (2026-09 신규) 실시간 공유 보기(읽기 전용) — 편집 권한이 없는 사람(예: 전사 열람 대상, SharePoint '읽기' 권한만 있는 경우)이
+   같은 공유 파일을 연결해 몇 초 안에 자동으로 최신 내용을 보기만 하는 모드. 이 화면에서는 무엇을 눌러도 그 공유 파일에 절대 쓰지 않는다
+   (읽기 권한만 요청하므로, 그 파일이 실제로 이 사람에게 쓰기 금지돼 있어도 정상 동작한다). 병합(merge)도 하지 않고 공유 파일 내용을
+   그대로 화면에 반영한다 — 이 화면에는 "내가 편집 중인 내용"이라는 게 애초에 없기 때문에 병합할 대상이 없다. */
+async function sdLoadOnly(showToast) {
+  if (!sd.handle) return;
+  try {
+    const f = await sd.handle.getFile(), stamp = f.lastModified + ':' + f.size;
+    if (stamp === sd.lastStamp && !showToast) return;  // showToast=true(최초 연결 시)는 내용이 같아도 한 번은 반영해 화면을 채운다
+    sd.lastStamp = stamp;
+    const text = await f.text(); if (!text.trim()) return;
+    const remote = JSON.parse(text);
+    DATA = {projects: remote.projects || [], tasks: remote.tasks || [], staff: remote.staff || [], members: remote.members || [], _tomb: remote._tomb || {projects: {}, tasks: {}, staff: {}, members: {}}};
+    prepare(); render(); setSrcStatus();
+    sd.lastSyncAt = new Date().toLocaleString('ko-KR', {hour12: false});
+    if (showToast) toast('공유 데이터를 불러왔습니다 (읽기 전용 — 이 화면에서는 편집할 수 없습니다)');
+  } catch (e) { console.warn(e); }
+}
+async function linkSharedDataView() {
+  if (!window.showOpenFilePicker) { alert('이 브라우저는 실시간 공유 보기 기능을 지원하지 않습니다 (Chrome/Edge 필요).'); return; }
+  try {
+    const [handle] = await showOpenFilePicker({types: [{description: 'BIM 공유 데이터', accept: {'application/json': ['.json']}}]});
+    if ((await handle.queryPermission({mode: 'read'})) !== 'granted' && (await handle.requestPermission({mode: 'read'})) !== 'granted') { alert('읽기 권한을 허용해야 실시간 공유 보기를 사용할 수 있습니다.'); return; }
+    sd.handle = handle; sd.readOnly = true; await idb.set('sharedData', handle); await idb.set('sharedDataRO', true);
+    await sdLoadOnly(true);
+    sdStartWatch();
+  } catch (e) { if (e.name !== 'AbortError') alert(e.message); }
+}
+async function restoreSharedData() {
+  if (!window.showOpenFilePicker) return;
+  try {
+    const h = await idb.get('sharedData'); if (!h) return; sd.handle = h;
+    sd.readOnly = !!(await idb.get('sharedDataRO'));  // (2026-09 신규) 이 브라우저가 편집용/읽기전용 중 어느 쪽으로 연결했었는지 복원
+    const mode = sd.readOnly ? 'read' : 'readwrite';
+    const ok = (await h.queryPermission({mode})) === 'granted';
+    if (ok) { if (sd.readOnly) { await sdLoadOnly(true); sdStartWatch(); } else { await sdConnectAfterPick(); } }
+    else {
+      setSrcStatus();
+      const btn = $(sd.readOnly ? '#btnSharedLinkView' : '#btnSharedLink');
+      const label = sd.readOnly ? '실시간 공유 보기(읽기전용)' : '실시간 공유 연결';
+      if (btn) { btn.textContent = (sd.readOnly ? '실시간 공유 보기 재연결' : '실시간 공유 재연결'); btn.onclick = async () => { if ((await h.requestPermission({mode})) !== 'granted') return; btn.textContent = label; btn.onclick = sd.readOnly ? linkSharedDataView : linkSharedData; if (sd.readOnly) { await sdLoadOnly(true); sdStartWatch(); } else { await sdConnectAfterPick(); } }; }
+    }
+  } catch (e) { console.warn(e); }
+}
+$('#btnSharedLink').onclick = linkSharedData;
+$('#btnSharedLinkView').onclick = linkSharedDataView;
+
+let dragN = 0;
+document.addEventListener('dragenter', e => { if ([...e.dataTransfer.items || []].some(i => i.kind === 'file')) { dragN++; $('#drop').classList.add('on'); } });
+document.addEventListener('dragleave', () => { if (--dragN <= 0) { dragN = 0; $('#drop').classList.remove('on'); } });
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => { e.preventDefault(); dragN = 0; $('#drop').classList.remove('on'); const fs = [...e.dataTransfer.files].filter(f => /\.xls[xm]?$/i.test(f.name)); if (fs.length) loadExcelFiles(fs); });
+
+/* ============================================================ 모달 (드래그/최대화/닫기) */
+const modalState = {};
+function openModal(id) { $('#backdrop').classList.add('on'); const m = $('#' + id); m.classList.add('open');
+  if (!m.dataset.placed) { m.style.left = Math.max(10, (innerWidth - m.offsetWidth) / 2) + 'px'; m.style.top = Math.max(10, (innerHeight - m.offsetHeight) / 2 + scrollY * 0) + 'px'; m.dataset.placed = 1; } }
+function closeModal(id) { $('#' + id).classList.remove('open'); if (!document.querySelector('.modal.open')) $('#backdrop').classList.remove('on'); if (id === 'viewer') viewerPause(); }
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => closeModal(b.dataset.close));
+document.querySelectorAll('[data-max]').forEach(b => b.onclick = () => { const m = $('#' + b.dataset.max); const s = modalState[b.dataset.max];
+  if (s) { Object.assign(m.style, s); delete modalState[b.dataset.max]; } else { modalState[b.dataset.max] = {left: m.style.left, top: m.style.top, width: m.style.width, height: m.style.height}; Object.assign(m.style, {left: '8px', top: '8px', width: (innerWidth - 16) + 'px', height: (innerHeight - 16) + 'px'}); }
+  window.dispatchEvent(new Event('resize')); });
+document.querySelectorAll('[data-drag]').forEach(h => h.onmousedown = e => { if (e.target.tagName === 'BUTTON') return; const m = $('#' + h.dataset.drag); const sx = e.clientX - m.offsetLeft, sy = e.clientY - m.offsetTop;
+  const mv = ev => { m.style.left = (ev.clientX - sx) + 'px'; m.style.top = Math.max(0, ev.clientY - sy) + 'px'; }; const up = () => { removeEventListener('mousemove', mv); removeEventListener('mouseup', up); };
+  addEventListener('mousemove', mv); addEventListener('mouseup', up); e.preventDefault(); });
+$('#backdrop').onclick = () => document.querySelectorAll('.modal.open').forEach(m => closeModal(m.id));
+new ResizeObserver(() => window.dispatchEvent(new Event('resize'))).observe($('#viewer'));
+
+/* ============================================================ 프로젝트 상세 팝업 */
+let pmMap = null;
+function openProject(id) {
+  const p = proj(id), lt = latestTasks().filter(t => t.pid === id).sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+  const prog = projProgress(id, lt), md = lt.reduce((a, t) => a + t.mdCum, 0), mdw = lt.reduce((a, t) => a + t.mdWeek, 0);
+  $('#pmTitle').innerHTML = `<small>${esc(p.id)}</small>${esc(p.name)} <span class="chip" style="color:${CATCOL[p.category] || 'var(--ink2)'};background:var(--bg)">${esc(p.category || '')}</span>`;
+  const f = (k, v) => v ? `<dt>${k}</dt><dd>${esc(v)}</dd>` : '';
+  const ifcs = split(p.ifc); const issues = weekTasks().filter(t => t.pid === id && t.issue);
+  $('#pmBody').innerHTML = `<div class="grid" style="grid-template-columns:1fr 1fr 330px">
+    <div><h3 style="color:var(--cyan);font-size:12px;margin:0 0 8px">프로젝트 개요</h3><dl class="field">${f('발주처', p.client)}${f('위치', p.address)}${f('규모', p.scale)}${f('기간', (p.start || '') + ' ~ ' + (p.end || ''))}${f('BIM 적용범위', p.scope)}<dt>현장담당</dt><dd>${chips(p.field, '', '') || '-'}</dd><dt>BIM섹션 담당</dt><dd>${chips('', p.enc, '') || '-'}</dd><dt>작업담당(A&C)</dt><dd>${chips('', '', p.anc) || '-'}</dd>${f('IFC 경로', p.ifcPath)}${f('IFC 파일', ifcs.join(', '))}</dl>
+      <p style="color:var(--ink2);line-height:1.6;margin:8px 0">${esc(p.overview || '')}</p>${issues.length ? `<div style="border-left:3px solid var(--warn);padding:6px 10px;background:rgba(201,146,47,.12)"><b style="color:var(--warn)">주요 이슈 (${WEEK})</b>${issues.map(t => `<div style="margin-top:3px">• ${esc(t.issue)} <small style="color:var(--ink3)">– ${esc(t.task)}</small></div>`).join('')}</div>` : ''}</div>
+    <div><h3 style="color:var(--cyan);font-size:12px;margin:0 0 8px">현황 요약</h3><div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">${ringSvg(prog, 84)}<div class="status" style="line-height:1.9"><div>세부 업무 <b style="color:var(--ink);font-size:15px">${lt.length}</b>건 (진행 ${lt.filter(t => t.status === '진행').length} · 완료 ${lt.filter(t => t.status === '완료').length} · 지연 ${lt.filter(t => t.status === '지연').length})</div><div>금주 투입 <b style="color:var(--ink);font-size:15px">${fmt(mdw)}</b> MD · 누적 <b style="color:var(--ink);font-size:15px">${fmt(md)}</b> MD</div><div>기준주차 ${WEEK || '-'}</div></div></div>
+      <div class="chart" style="height:150px;margin-top:8px"><canvas id="chPm"></canvas></div>
+      <div style="margin-top:8px"><button class="btn primary" onclick="openViewer('${esc(p.id)}')">🧊 3D 모델 보기 (IFC)</button></div></div>
+    <div><h3 style="color:var(--cyan);font-size:12px;margin:0 0 8px">위치</h3><div class="map" id="pmMap"></div></div></div>
+    <h3 style="color:var(--cyan);font-size:12px;margin:14px 0 8px">세부 업무 내용 (기준주차 이하 최신)</h3>${taskDetailTable(lt)}`;
+  openModal('pmodal');
+  chart('chPm', {type: 'bar', data: {labels: WEEKS.map(wkLabel), datasets: [{label: '주간 투입 MD', data: WEEKS.map(w => +DATA.tasks.filter(t => t.week === w && t.pid === id).reduce((a, t) => a + t.md, 0).toFixed(1)), backgroundColor: WEEKS.map(w => w === WEEK ? '#3D5A73' : '#D8D2BF'), borderRadius: 3, borderSkipped: false}]}, options: {maintainAspectRatio: false, plugins: {legend: {display: false}}, scales: {y: {beginAtZero: true}, x: {grid: {display: false}}}}});
+  if (pmMap) { pmMap.remove(); pmMap = null; }
+  const lat = +p.lat, lng = +p.lng;
+  if (lat && lng) {
+    pmMap = L.map('pmMap', {zoomControl: true}).setView([lat, lng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution: '© OpenStreetMap', maxZoom: 19}).addTo(pmMap);
+    L.circleMarker([lat, lng], {radius: 9, color: '#2C4258', fillColor: '#3D5A73', fillOpacity: .85, weight: 2}).addTo(pmMap).bindPopup(`<b>${esc(p.name)}</b><br>${esc(p.address || '')}`).openPopup();
+    setTimeout(() => pmMap.invalidateSize(), 200);
+  } else $('#pmMap').innerHTML = '<div class="empty">프로젝트개요 시트에 위도/경도를 입력하면 지도가 표시됩니다.</div>';
+}
+$('#pmodal').addEventListener('mouseup', () => pmMap && setTimeout(() => pmMap.invalidateSize(), 50));
+
+/* ============================================================ IFC 파일 연결 (프로젝트별) */
+/* 우선순위: ① 프로젝트별 지정 파일(브라우저 기억) ② 프로젝트별 연결 폴더 ③ 공통 IFC 폴더 ④ IFC경로가 URL이면 fetch ⑤ 웹서버의 ifc/ */
+const ifcStore = {handle: null, files: new Map(), proj: {}};  // proj[pid] = {files: Map(name→handle|File), dir: handle}
+const idb = { open: () => new Promise((res, rej) => { const r = indexedDB.open('bimdash', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }),
+  get: async k => { const db = await idb.open(); return new Promise(res => { const r = db.transaction('kv').objectStore('kv').get(k); r.onsuccess = () => res(r.result); r.onerror = () => res(null); }); },
+  set: async (k, v) => { const db = await idb.open(); return new Promise(res => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = res; }); } };
+const FSA = !!window.showDirectoryPicker;
+async function indexDir(handle, map, depth = 0) {
+  for await (const [name, h] of handle.entries()) {
+    if (h.kind === 'file' && /\.ifc(zip)?$/i.test(name)) map.set(name.toLowerCase(), h);
+    else if (h.kind === 'directory' && depth < 3) await indexDir(h, map, depth + 1);
+  }
+}
+async function ensurePerm(h) { try { if (await h.queryPermission({mode: 'read'}) === 'granted') return true; return (await h.requestPermission({mode: 'read'})) === 'granted'; } catch (e) { return false; } }
+function ifcStatus(msg) { const b = $('#btnIfc'); if (b) b.textContent = msg; }
+async function connectIfcDir() {
+  if (FSA) { try { const h = await showDirectoryPicker({mode: 'read'}); ifcStore.handle = h; ifcStore.files.clear(); await indexDir(h, ifcStore.files); await idb.set('ifcDir', h); ifcStatus(`공통 IFC 폴더: ${h.name} (${ifcStore.files.size}개)`); } catch (e) { if (e.name !== 'AbortError') console.warn(e); } }
+  else { const inp = $('#fileIfcDir'); if (inp) inp.click(); }
+}
+on('#btnIfc', 'onclick', connectIfcDir);
+on('#fileIfcDir', 'onchange', e => { ifcStore.files.clear(); [...e.target.files].filter(f => /\.ifc(zip)?$/i.test(f.name)).forEach(f => ifcStore.files.set(f.name.toLowerCase(), f)); ifcStatus(`공통 IFC 폴더 (${ifcStore.files.size}개)`); });
+async function restoreIfcDir() {
+  // 공통 IFC 폴더 연결 버튼은 툴바에서 제거되었지만, 이전에 이미 연결해 두었던 사용자를 위해
+  // (프로젝트별 '파일 지정…'과는 별개로) 저장된 폴더가 있으면 조용히 복원만 시도한다.
+  if (!FSA) return;
+  try { const h = await idb.get('ifcDir'); if (!h) return; ifcStore.handle = h;
+    if (await h.queryPermission({mode: 'read'}) === 'granted') { await indexDir(h, ifcStore.files); ifcStatus(`공통 IFC 폴더: ${h.name} (${ifcStore.files.size}개)`); }
+  } catch (e) { console.warn(e); }
+}
+async function projStore(pid) {  // 프로젝트별 저장된 파일/폴더 핸들 복원
+  if (ifcStore.proj[pid]) return ifcStore.proj[pid];
+  const st = {files: new Map(), dir: null, pending: false};
+  ifcStore.proj[pid] = st;
+  if (!FSA) return st;
+  try {
+    const saved = await idb.get('ifc:' + pid);
+    if (saved) { for (const h of saved.files || []) { if (await h.queryPermission({mode: 'read'}) === 'granted') st.files.set(h.name.toLowerCase(), h); else { st.pending = true; st.savedFiles = saved.files; } }
+      if (saved.dir) { st.dir = saved.dir; if (await saved.dir.queryPermission({mode: 'read'}) === 'granted') await indexDir(saved.dir, st.files); else st.pending = true; } }
+  } catch (e) { console.warn(e); }
+  return st;
+}
+async function projReconnect(pid) {  // 권한 재요청 (사용자 클릭 필요)
+  const st = await projStore(pid); let ok = false;
+  for (const h of st.savedFiles || []) if (await ensurePerm(h)) { st.files.set(h.name.toLowerCase(), h); ok = true; }
+  if (st.dir && await ensurePerm(st.dir)) { await indexDir(st.dir, st.files); ok = true; }
+  st.pending = false; return ok;
+}
+async function pickProjectFiles(pid) {  // "파일 지정…" : 이 프로젝트의 IFC 파일을 직접 선택 → 즉시 뷰어 연결 (브라우저가 기억)
+  const st = await projStore(pid);
+  if (FSA) {
+    try {
+      const hs = await showOpenFilePicker({multiple: true, types: [{description: 'IFC', accept: {'application/x-step': ['.ifc', '.ifczip']}}]});
+      hs.forEach(h => st.files.set(h.name.toLowerCase(), h)); st.savedFiles = [...new Map([...(st.savedFiles || []), ...hs].map(h => [h.name, h])).values()];
+      await idb.set('ifc:' + pid, {files: st.savedFiles, dir: st.dir});
+      fillFileList(pid, hs[0].name); loadIfc(pid, hs[0].name);
+    } catch (e) { if (e.name !== 'AbortError') console.warn(e); }
+  } else { $('#vPickInput').onchange = e => { const fs = [...e.target.files]; fs.forEach(f => st.files.set(f.name.toLowerCase(), f)); if (fs[0]) { fillFileList(pid, fs[0].name); loadIfc(pid, fs[0].name); } }; $('#vPickInput').click(); }
+}
+async function ifcBuffer(pid, name) {
+  const p = proj(pid); const st = await projStore(pid);
+  let h = st.files.get(name.toLowerCase()) || ifcStore.files.get(name.toLowerCase());
+  if (h) { const f = h.getFile ? await h.getFile() : h; return new Uint8Array(await f.arrayBuffer()); }
+  const path = (p.ifcPath || '').trim();
+  if (/^https?:\/\//i.test(path)) { const r = await fetch(path.replace(/\/$/, '') + '/' + encodeURIComponent(name)); if (r.ok) return new Uint8Array(await r.arrayBuffer()); }
+  if (location.protocol.startsWith('http')) { const r = await fetch('ifc/' + encodeURIComponent(name)); if (r.ok) return new Uint8Array(await r.arrayBuffer()); }
+  throw new Error(`IFC 파일을 찾을 수 없습니다: ${name}\n'파일 지정…' 으로 이 프로젝트의 IFC 파일(경로: ${path || '미지정'})을 선택하거나, 상단 'IFC 폴더 연결'로 공통 폴더를 지정하세요.`);
+}
+function hasFile(pid, name) { const st = ifcStore.proj[pid]; return !!((st && st.files.has(name.toLowerCase())) || ifcStore.files.has(name.toLowerCase()) || /^https?:\/\//i.test(proj(pid).ifcPath || '') || location.protocol.startsWith('http')); }
+function fillFileList(pid, selected) {
+  const p = proj(pid), st = ifcStore.proj[pid] || {files: new Map()}; const listed = split(p.ifc);
+  const linked = [...st.files.values()].map(h => h.name);
+  const names = [...new Set([...linked, ...listed, ...[...ifcStore.files.keys()].filter(k => k.startsWith(p.id.toLowerCase()))])];
+  const opt = n => `<option value="${esc(n)}" ${n === selected ? 'selected' : ''}>${esc(n)}${hasFile(pid, n) ? '' : ' (미연결)'}</option>`;
+  $('#vFile').innerHTML = names.map(opt).join('') || '<option value="">파일 지정… 으로 IFC 선택</option>';
+}
+function projectFirstFile(pid) { const st = ifcStore.proj[pid]; const linked = st ? [...st.files.values()].map(h => h.name) : []; return linked[0] || split(proj(pid).ifc).find(n => hasFile(pid, n)) || [...ifcStore.files.keys()].find(k => k.startsWith(pid.toLowerCase())) || null; }
+
+/* ============================================================ 3D 뷰어 (three.js + web-ifc) */
+const V = {edges: true, api: null, ready: null, scene: null, camera: null, renderer: null, meshes: [], model: null, selected: null, clip: null, bbox: null, xray: false, anim: false, pid: null, hidden: new Set(), measure: false, mpts: [], mlabels: [], names: null};
+function viewerInit() {
+  if (V.renderer) return;
+  const el = $('#vcanvas');
+  V.scene = new THREE.Scene();
+  V.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 5000); V.camera.position.set(30, 25, 30);
+  V.renderer = new THREE.WebGLRenderer({antialias: true, alpha: true, preserveDrawingBuffer: true}); V.renderer.setPixelRatio(Math.min(2, devicePixelRatio)); V.renderer.localClippingEnabled = true;
+  el.insertBefore(V.renderer.domElement, el.firstChild);
+  V.scene.add(new THREE.AmbientLight(0xffffff, .55));
+  const d1 = new THREE.DirectionalLight(0xffffff, .9); d1.position.set(1, 2, 1.5); V.scene.add(d1);
+  const d2 = new THREE.DirectionalLight(0x88bbff, .35); d2.position.set(-2, 1, -1); V.scene.add(d2);
+  V.grid = new THREE.GridHelper(100, 50, 0x22d3ee, 0x1e3a5f); V.grid.material.opacity = .25; V.grid.material.transparent = true; V.scene.add(V.grid);
+  V.clip = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1e6);
+  V.edgeMat = new THREE.LineBasicMaterial({color: 0x0b1a33, transparent: true, opacity: .55, clippingPlanes: [V.clip]});
+  V.mgroup = new THREE.Group(); V.scene.add(V.mgroup);
+  // ---- 카메라 컨트롤 (orbit / pan / zoom)
+  const ctl = V.ctl = {target: new THREE.Vector3(), sph: new THREE.Spherical(50, 1.0, 0.8), drag: null, last: null};
+  const apply = () => { const p = new THREE.Vector3().setFromSpherical(ctl.sph).add(ctl.target); V.camera.position.copy(p); V.camera.lookAt(ctl.target); };
+  ctl.apply = apply; apply();
+  const c = V.renderer.domElement;
+  c.addEventListener('contextmenu', e => { e.preventDefault(); if (V.measure) setMeasure(false); });
+  c.addEventListener('mousedown', e => { ctl.drag = e.button === 0 ? 'rot' : 'pan'; ctl.last = [e.clientX, e.clientY]; ctl.moved = 0; });
+  addEventListener('mousemove', e => { if (!ctl.drag) return; const dx = e.clientX - ctl.last[0], dy = e.clientY - ctl.last[1]; ctl.last = [e.clientX, e.clientY]; ctl.moved += Math.abs(dx) + Math.abs(dy);
+    if (ctl.drag === 'rot') { ctl.sph.theta -= dx * .006; ctl.sph.phi = Math.max(.05, Math.min(Math.PI - .05, ctl.sph.phi - dy * .006)); }
+    else { const k = ctl.sph.radius * .0015; const right = new THREE.Vector3().setFromMatrixColumn(V.camera.matrix, 0), up = new THREE.Vector3().setFromMatrixColumn(V.camera.matrix, 1); ctl.target.addScaledVector(right, -dx * k).addScaledVector(up, dy * k); }
+    apply(); });
+  addEventListener('mouseup', e => { if (ctl.drag === 'rot' && ctl.moved < 4 && e.target === c) onClick(e); ctl.drag = null; });
+  c.addEventListener('dblclick', e => { const h = hitAt(e); if (h) { ctl.target.copy(h.point); ctl.sph.radius = Math.max(1, ctl.sph.radius * .5); apply(); } });
+  c.addEventListener('wheel', e => { e.preventDefault(); ctl.sph.radius *= e.deltaY > 0 ? 1.12 : .89; ctl.sph.radius = Math.max(.5, Math.min(5000, ctl.sph.radius)); apply(); }, {passive: false});
+  addEventListener('resize', viewerResize);
+  $('#vFit').onclick = fitView; $('#vOpen').onclick = () => loadIfc(V.pid, $('#vFile').value);
+  $('#vPick').onclick = () => pickProjectFiles(V.pid);
+  $('#vWire').onclick = () => { V.xray = !V.xray; V.meshes.forEach(m => { m.material.transparent = V.xray || m.userData.alpha < 1; m.material.opacity = V.xray ? .25 : m.userData.alpha; m.material.depthWrite = !V.xray; }); $('#vWire').classList.toggle('on', V.xray); };
+  $('#vEdge').onclick = () => { V.edges = !V.edges; V.meshes.forEach(m => { if (m.userData.edge) m.userData.edge.visible = V.edges; }); $('#vEdge').classList.toggle('on', V.edges); }; $('#vEdge').classList.add('on');
+  $('#vHide').onclick = () => { if (V.selected) { V.hidden.add(V.selected.userData.expressID); select(null); applyVis(); } };
+  $('#vIso').onclick = () => { if (V.selected) { const keep = V.selected.userData.expressID; V.meshes.forEach(m => { if (m.userData.expressID !== keep) V.hidden.add(m.userData.expressID); }); applyVis(); } };
+  $('#vShowAll').onclick = () => { V.hidden.clear(); document.querySelectorAll('#vStoreys input, #vTypes input').forEach(i => i.checked = true); applyVis(); };
+  $('#vMeasure').onclick = () => setMeasure(!V.measure);
+  $('#vShot').onclick = () => { V.renderer.render(V.scene, V.camera); const a = document.createElement('a'); a.download = `${V.pid || 'model'}_${dstr(new Date())}.png`; a.href = V.renderer.domElement.toDataURL('image/png'); a.click(); };
+  document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => setView(b.dataset.view));
+  $('#vClip').oninput = e => { if (!V.bbox) return; const t = e.target.value / 100; V.clip.constant = V.bbox.min.y + (V.bbox.max.y - V.bbox.min.y) * t + .01; };
+  $('#vSearch').onkeydown = e => { if (e.key === 'Enter') searchElements(e.target.value.trim()); };
+  addEventListener('keydown', e => { if (!$('#viewer').classList.contains('open') || e.target.tagName === 'INPUT') return;
+    const k = e.key.toLowerCase(); const map = {f: fitView, h: () => $('#vHide').click(), i: () => $('#vIso').click(), a: () => $('#vShowAll').click(), x: () => $('#vWire').click(), e: () => $('#vEdge').click(), m: () => $('#vMeasure').click(), '1': () => setView('iso'), '2': () => setView('top'), '3': () => setView('front'), '4': () => setView('side'), escape: () => { select(null); if (V.measure) setMeasure(false); }};
+    if (map[k]) { map[k](); e.preventDefault(); } });
+  V.raycaster = new THREE.Raycaster();
+  function hitAt(e) {
+    const r = c.getBoundingClientRect(); const m = new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    V.raycaster.setFromCamera(m, V.camera);
+    const hits = V.raycaster.intersectObjects(V.meshes.filter(x => x.visible), false).filter(h => V.clip.distanceToPoint(h.point) >= 0);
+    return hits[0] || null;
+  }
+  function onClick(e) { const h = hitAt(e); if (V.measure) { if (h) addMeasurePoint(h.point); return; } select(h ? h.object : null); }
+}
+function applyVis() {
+  const hs = new Set([...document.querySelectorAll('#vStoreys input:not(:checked)')].map(i => i.dataset.storey)), ht = new Set([...document.querySelectorAll('#vTypes input:not(:checked)')].map(i => i.dataset.type));
+  V.meshes.forEach(m => m.visible = !hs.has(m.userData.storey) && !ht.has(m.userData.type) && !V.hidden.has(m.userData.expressID));
+  $('#vStatus').textContent = `${V.file || ''} · 표시 ${V.meshes.filter(m => m.visible).length.toLocaleString()} / ${V.meshes.length.toLocaleString()} 요소`;
+}
+function setView(kind) {
+  if (!V.bbox) return; const s = new THREE.Vector3(); V.bbox.getSize(s); V.bbox.getCenter(V.ctl.target); const r = Math.max(s.x, s.y, s.z) * 1.5 + 2;
+  const sp = V.ctl.sph; sp.radius = r;
+  if (kind === 'top') { sp.phi = .02; sp.theta = 0; } else if (kind === 'front') { sp.phi = Math.PI / 2; sp.theta = 0; } else if (kind === 'side') { sp.phi = Math.PI / 2; sp.theta = Math.PI / 2; } else { sp.phi = 1.0; sp.theta = .8; }
+  V.ctl.apply();
+}
+function setMeasure(on) { V.measure = on; $('#vMeasure').classList.toggle('on', on); V.renderer.domElement.style.cursor = on ? 'crosshair' : ''; if (!on) { V.mpts = []; } else { select(null); } $('#vhint').textContent = on ? '측정: 두 점을 클릭하세요 (우클릭/M: 종료)' : '좌드래그 회전 · 우드래그/휠드래그 이동 · 휠 확대 · 클릭 선택 · 더블클릭 확대 · Esc 선택해제'; }
+function addMeasurePoint(p) {
+  V.mpts.push(p.clone());
+  const dot = new THREE.Mesh(new THREE.SphereGeometry(Math.max(.03, V.ctl.sph.radius * .004), 12, 12), new THREE.MeshBasicMaterial({color: 0xfbbf24})); dot.position.copy(p); V.mgroup.add(dot);
+  if (V.mpts.length === 2) {
+    const [a, b] = V.mpts; const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), new THREE.LineBasicMaterial({color: 0xfbbf24, depthTest: false})); V.mgroup.add(line);
+    const d = a.distanceTo(b), mid = a.clone().add(b).multiplyScalar(.5);
+    const lab = document.createElement('span'); lab.textContent = `${d.toFixed(3)} m  (Δx ${Math.abs(a.x - b.x).toFixed(2)} · Δy ${Math.abs(a.z - b.z).toFixed(2)} · Δz ${Math.abs(a.y - b.y).toFixed(2)})`; $('#vlabels').appendChild(lab);
+    V.mlabels.push({el: lab, pos: mid}); V.mpts = [];
+  }
+}
+function clearMeasures() { V.mgroup.clear(); V.mlabels.forEach(l => l.el.remove()); V.mlabels = []; V.mpts = []; }
+function updateLabels() {
+  if (!V.mlabels.length) return; const c = V.renderer.domElement; const w = c.clientWidth, h = c.clientHeight;
+  V.mlabels.forEach(l => { const p = l.pos.clone().project(V.camera); const vis = p.z < 1; l.el.style.display = vis ? '' : 'none'; l.el.style.left = ((p.x + 1) / 2 * w) + 'px'; l.el.style.top = ((1 - p.y) / 2 * h) + 'px'; });
+}
+function viewerResize() { if (!V.renderer) return; const el = $('#vcanvas'); const w = el.clientWidth, h = el.clientHeight; if (!w || !h) return; V.renderer.setSize(w, h, false); V.camera.aspect = w / h; V.camera.updateProjectionMatrix(); }
+function viewerLoop() { if (!V.anim) return; requestAnimationFrame(viewerLoop); V.renderer.render(V.scene, V.camera); updateLabels(); }
+function viewerPause() { V.anim = false; }
+function fitView() { if (!V.bbox) return; const s = new THREE.Vector3(); V.bbox.getSize(s); V.bbox.getCenter(V.ctl.target); V.ctl.sph.radius = Math.max(s.x, s.y, s.z) * 1.4 + 2; V.ctl.apply(); }
+function elementName(m) { if (m.userData.name !== undefined) return m.userData.name; try { const l = V.api.GetLine(V.model, m.userData.expressID); m.userData.name = l.Name?.value || ''; m.userData.guid = l.GlobalId?.value || ''; } catch (e) { m.userData.name = ''; m.userData.guid = ''; } return m.userData.name; }
+function searchElements(q) {
+  const box = $('#vSearchRes'); if (!q) { box.innerHTML = ''; return; } const ql = q.toLowerCase();
+  const hits = V.meshes.filter(m => { elementName(m); return (m.userData.name || '').toLowerCase().includes(ql) || (m.userData.guid || '').toLowerCase() === ql || m.userData.type.toLowerCase().includes(ql) || String(m.userData.expressID) === ql; });
+  box.innerHTML = `<div style="color:var(--cyan);cursor:default">${hits.length}개 일치${hits.length > 30 ? ' (30개 표시)' : ''}</div>` + hits.slice(0, 30).map((m, i) => `<div data-i="${V.meshes.indexOf(m)}">${esc(m.userData.name || '(이름 없음)')} <small style="color:var(--ink3)">${esc(m.userData.type.replace(/^Ifc/, ''))}${m.userData.storey ? ' · ' + esc(m.userData.storey) : ''}</small></div>`).join('');
+  box.querySelectorAll('[data-i]').forEach(d => d.onclick = () => { const m = V.meshes[+d.dataset.i]; m.visible = true; select(m); const bb = new THREE.Box3().setFromObject(m); const s = new THREE.Vector3(); bb.getSize(s); bb.getCenter(V.ctl.target); V.ctl.sph.radius = Math.max(s.x, s.y, s.z) * 2.5 + 1; V.ctl.apply(); });
+}
+async function select(mesh) {
+  if (V.selected) { V.selected.material.emissive.setHex(0); }
+  V.selected = mesh; if (!mesh) { $('#vprops').innerHTML = '<span class="status">요소를 클릭하면 속성이 표시됩니다.</span>'; return; }
+  mesh.material.emissive.setHex(0x22d3ee); mesh.material.emissiveIntensity = .6;
+  const id = mesh.userData.expressID, api = V.api, mid = V.model;
+  try {
+    const line = api.GetLine(mid, id); const type = api.GetNameFromTypeCode(line.type);
+    const bb = new THREE.Box3().setFromObject(mesh); const sz = new THREE.Vector3(); bb.getSize(sz);
+    let html = `<div><span class="k">유형</span> <span class="v">${esc(type)}</span></div><div><span class="k">이름</span> <span class="v">${esc(line.Name?.value || '-')}</span></div>${line.ObjectType?.value ? `<div><span class="k">ObjectType</span> <span class="v">${esc(line.ObjectType.value)}</span></div>` : ''}${mesh.userData.storey ? `<div><span class="k">층</span> <span class="v">${esc(mesh.userData.storey)}</span></div>` : ''}<div><span class="k">GlobalId</span> <span class="v" style="font-size:11px">${esc(line.GlobalId?.value || '')}</span></div><div><span class="k">ExpressID</span> <span class="v">${id}</span></div><div><span class="k">외곽 크기</span> <span class="v">${sz.x.toFixed(2)} × ${sz.z.toFixed(2)} × ${sz.y.toFixed(2)} m</span></div>`;
+    let psets = api.properties ? await api.properties.getPropertySets(mid, id, true) : []; if (!Array.isArray(psets)) psets = [];
+    const val = v => v == null ? '' : (v.value !== undefined ? (v.value?.value !== undefined ? v.value.value : v.value) : v);
+    psets.forEach(ps => { const props = ps.HasProperties || ps.Quantities || []; if (!props.length) return;
+      html += `<div class="ps">${esc(ps.Name?.value || '')}</div><table>` + props.map(p => { const v = p.NominalValue ? val(p.NominalValue) : (p.LengthValue ?? p.AreaValue ?? p.VolumeValue ?? p.CountValue ?? p.WeightValue ?? {}); return `<tr><td class="k">${esc(p.Name?.value || '')}</td><td class="v">${esc(typeof v === 'object' ? val(v) : v)}</td></tr>`; }).join('') + '</table>'; });
+    try { const mats = await api.properties.getMaterialsProperties(mid, id, true); if (Array.isArray(mats) && mats.length) { html += `<div class="ps">재료</div><table>` + mats.map(m => `<tr><td class="v">${esc(m.Name?.value || (m.ForLayerSet ? 'LayerSet' : m.constructor?.name || ''))}</td></tr>`).join('') + '</table>'; } } catch (e) {}
+    $('#vprops').innerHTML = html;
+  } catch (e) { $('#vprops').innerHTML = `<span class="status">속성 조회 실패: ${esc(e.message)}</span>`; }
+}
+function loadLib(name) {  // lib/ 파일 또는 단일파일 빌드에 내장된 <script type="text/plain" data-lib="..."> 사용
+  return new Promise((res, rej) => {
+    const emb = document.querySelector(`script[type="text/plain"][data-lib="${name}"]`);
+    const s = document.createElement('script');
+    s.src = emb ? URL.createObjectURL(new Blob([emb.textContent], {type: 'text/javascript'})) : 'lib/' + name;
+    s.onload = res; s.onerror = () => rej(new Error(`lib/${name} 로드 실패 – lib 폴더가 함께 있는지 확인하세요`)); document.head.appendChild(s);
+  });
+}
+async function ensureIfcApi() {
+  if (V.api) return V.api;
+  if (!V.ready) V.ready = (async () => {
+    await loadLib('web-ifc-api-iife.js'); await loadLib('web-ifc-wasm.js');
+    const bin = Uint8Array.from(atob(window.WEB_IFC_WASM_B64), c => c.charCodeAt(0)); const url = URL.createObjectURL(new Blob([bin], {type: 'application/wasm'}));
+    const api = new WebIFC.IfcAPI(); await api.Init(() => url, true); V.api = api; return api;
+  })();
+  return V.ready;
+}
+function clearModel() {
+  V.meshes.forEach(m => { V.scene.remove(m); m.geometry.dispose(); m.material.dispose(); if (m.userData.edge) m.userData.edge.geometry.dispose(); }); V.meshes = []; V.bbox = null; V.hidden.clear(); select(null); clearMeasures();
+  if (V.model != null && V.api) { try { V.api.CloseModel(V.model); } catch (e) {} V.model = null; }
+  $('#vStoreys').innerHTML = ''; $('#vTypes').innerHTML = ''; $('#vSearchRes').innerHTML = '';
+}
+function vload(on, msg, pct) { $('#vload').classList.toggle('on', !!on); if (msg) $('#vloadMsg').textContent = msg; $('#vloadBar').style.width = (pct || 0) + '%'; }
+const tick = () => new Promise(r => setTimeout(r, 0));
+async function loadIfc(pid, name) {
+  if (!name) { $('#vStatus').textContent = 'IFC 미연결 – 파일 지정… 을 누르세요.'; return; }
+  viewerInit(); vload(true, `${name} 읽는 중…`, 5); await tick();
+  try {
+    const st = await projStore(pid); V.loadedPid = pid;
+    if (st.pending && !st.files.has(name.toLowerCase())) { vload(true, '저장된 파일 접근 권한 확인…', 8); await projReconnect(pid); fillFileList(pid); }
+    const [api, buf] = await Promise.all([ensureIfcApi(), ifcBuffer(pid, name)]);
+    vload(true, '모델 파싱 중…', 20); await tick();
+    clearModel(); V.file = name;
+    const mid = api.OpenModel(buf, {COORDINATE_TO_ORIGIN: true}); V.model = mid;
+    const storeyOf = {}; const storeys = [];
+    try { const rels = api.GetLineIDsWithType(mid, WebIFC.IFCRELCONTAINEDINSPATIALSTRUCTURE);
+      for (let i = 0; i < rels.size(); i++) { const rel = api.GetLine(mid, rels.get(i)); const stl = api.GetLine(mid, rel.RelatingStructure.value); const sn = stl.Name?.value || ('#' + stl.expressID);
+        if (stl.type === WebIFC.IFCBUILDINGSTOREY && !storeys.find(s => s.id === stl.expressID)) storeys.push({id: stl.expressID, name: sn, elev: +(stl.Elevation?.value || 0)});
+        (rel.RelatedElements || []).forEach(r => storeyOf[r.value] = sn); } } catch (e) { console.warn('storey', e); }
+    storeys.sort((a, b) => a.elev - b.elev);
+    vload(true, '형상 생성 중…', 35); await tick();
+    const bbox = new THREE.Box3(); const types = {}; let n = 0;
+    api.StreamAllMeshes(mid, mesh => {
+      const geoms = mesh.geometries; const parts = [];
+      for (let i = 0; i < geoms.size(); i++) {
+        const pg = geoms.get(i); const g = api.GetGeometry(mid, pg.geometryExpressID);
+        const v = api.GetVertexArray(g.GetVertexData(), g.GetVertexDataSize()), idx = api.GetIndexArray(g.GetIndexData(), g.GetIndexDataSize());
+        const pos = new Float32Array(v.length / 2), nor = new Float32Array(v.length / 2);
+        for (let j = 0, k = 0; j < v.length; j += 6, k += 3) { pos[k] = v[j]; pos[k+1] = v[j+1]; pos[k+2] = v[j+2]; nor[k] = v[j+3]; nor[k+1] = v[j+4]; nor[k+2] = v[j+5]; }
+        const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); bg.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); bg.setIndex(new THREE.BufferAttribute(idx.slice(), 1));
+        bg.applyMatrix4(new THREE.Matrix4().fromArray(pg.flatTransformation));
+        parts.push({bg, color: pg.color}); g.delete();
+      }
+      if (!parts.length) return;
+      const col = parts[0].color; let total = 0; parts.forEach(p => total += p.bg.attributes.position.count);
+      const P = new Float32Array(total * 3), N = new Float32Array(total * 3); const I = new Uint32Array(parts.reduce((a, p) => a + p.bg.index.count, 0)); let off = 0, io = 0;
+      parts.forEach(p => { const g = p.bg; P.set(g.attributes.position.array, off * 3); N.set(g.attributes.normal.array, off * 3); const ia = g.index.array; for (let j = 0; j < ia.length; j++) I[io++] = ia[j] + off; off += g.attributes.position.count; g.dispose(); });
+      const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.BufferAttribute(P, 3)); bg.setAttribute('normal', new THREE.BufferAttribute(N, 3)); bg.setIndex(new THREE.BufferAttribute(I, 1));
+      const mat = new THREE.MeshLambertMaterial({color: new THREE.Color(col.x, col.y, col.z), transparent: col.w < 1, opacity: col.w, side: THREE.DoubleSide, clippingPlanes: [V.clip]});
+      const m3 = new THREE.Mesh(bg, mat);
+      let tname = 'IfcElement'; try { tname = api.GetNameFromTypeCode(api.GetLineType(mid, mesh.expressID)); } catch (e) {}
+      m3.userData = {expressID: mesh.expressID, alpha: col.w, type: tname, storey: storeyOf[mesh.expressID] || ''};
+      if (n < 4000) { const eg = new THREE.LineSegments(new THREE.EdgesGeometry(bg, 25), V.edgeMat); eg.visible = V.edges; m3.add(eg); m3.userData.edge = eg; }
+      V.scene.add(m3); V.meshes.push(m3); bg.computeBoundingBox(); bbox.union(bg.boundingBox); types[tname] = (types[tname] || 0) + 1; n++;
+    });
+    V.bbox = bbox; V.clip.constant = bbox.max.y + 1; $('#vClip').value = 100;
+    const size = new THREE.Vector3(); bbox.getSize(size); V.grid.position.y = bbox.min.y - .05; V.grid.scale.setScalar(Math.max(size.x, size.z) / 100 * 1.5 + .2);
+    setView('iso'); V.anim = true; viewerResize(); viewerLoop();
+    $('#vStoreys').innerHTML = storeys.map(s => `<label><input type="checkbox" checked data-storey="${esc(s.name)}"> ${esc(s.name)} <small style="color:var(--ink3)">(${s.elev.toFixed(2)})</small></label>`).join('') || '<span class="status">층 정보 없음</span>';
+    $('#vTypes').innerHTML = Object.entries(types).sort((a, b) => b[1] - a[1]).map(([t, c]) => `<label><input type="checkbox" checked data-type="${esc(t)}"> ${esc(t.replace(/^Ifc/, ''))} <small style="color:var(--ink3)">${c}</small></label>`).join('');
+    document.querySelectorAll('#vStoreys input, #vTypes input').forEach(i => i.onchange = applyVis);
+    applyVis(); $('#vStatus').textContent += ` · ${size.x.toFixed(1)} × ${size.z.toFixed(1)} × ${size.y.toFixed(1)} m`;
+    vload(false);
+  } catch (e) { console.error(e); vload(false); $('#vStatus').textContent = '오류: ' + e.message.split('\n')[0]; alert(e.message); }
+}
+async function openViewer(pid) {
+  const p = proj(pid); V.pid = pid;
+  $('#vTitle').innerHTML = `<small>${esc(p.id)}</small>${esc(p.name)} · 3D Viewer`;
+  $('#vPath').textContent = p.ifcPath ? `📁 ${p.ifcPath}` : ''; $('#vPath').title = p.ifcPath || '프로젝트개요 시트의 IFC경로 열에 폴더 경로를 입력하세요';
+  openModal('viewer'); viewerInit(); viewerResize(); V.anim = true; viewerLoop();
+  vload(true, '연결된 IFC 파일 확인 중…', 3); await projStore(pid); vload(false); fillFileList(pid);
+  const first = projectFirstFile(pid) || split(p.ifc)[0];
+  if (V.model != null && V.file === first && V.loadedPid === pid) return;  // 같은 모델이면 유지
+  if (!first) { $('#vStatus').textContent = 'IFC 미연결 – 파일 지정… 을 눌러 이 프로젝트의 IFC 파일을 선택하세요.'; return; }
+  if (hasFile(pid, first) || ifcStore.proj[pid].pending) { V.loadedPid = pid; loadIfc(pid, first); }
+  else $('#vStatus').textContent = `${first} – 아직 연결되지 않았습니다. 파일 지정… 으로 파일을 선택하세요.`;
+}
+/* ============================================================ 데이터 입력(화면 직접 편집) */
+/* 프로젝트개요 / 업무현황 / 인원 / 인력현황(근태)을 화면에서 직접 추가·수정·삭제. IFC 파일 지정은 기존 3D 뷰어 방식 그대로 둠(건드리지 않음).
+   변경은 blur(포커스 아웃)·선택 시점에 commit()되어 즉시 대쉬보드 전체·localStorage에 반영되며, '엑셀로 내보내기'로 기존 취합 방식에 이어 쓸 수 있는 xlsx를 만든다. */
+let editRid = 0;
+const newRid = () => 'r' + (++editRid);
+function ensureRid(arr) { arr.forEach(r => { if (r._rid == null) r._rid = newRid(); }); }
+function saveLocal(label) { try { localStorage.setItem('bimdash.data', JSON.stringify(DATA)); localStorage.setItem('bimdash.src', label + ' @ ' + new Date().toLocaleString('ko-KR', {hour12: false})); localStorage.setItem('bimdash.savedAt', String(Date.now())); } catch (e) {} }
+function commit() {  // change(blur) 이벤트 처리 중 바로 innerHTML을 갈아치우면 크롬이 포커스 이동과 충돌하므로 한 틱 미뤄서 반영.
+                     // 이 한 틱 사이에 Tab 등으로 포커스가 이미 다음 칸으로 넘어가 있는데, 표를 통째로 다시 그리면 그 포커스까지 같이 날아가
+                     // "ID 고치고 Tab으로 옆 칸(이름 등)까지 연달아 고치면 뒤엣것이 반영 안 되는" 현상이 생긴다. 다시 그리기 직전 포커스 위치(행·칸)를
+                     // 기억해뒀다가, 다시 그린 뒤 같은 위치에 포커스를 되돌려준다. (값 자체는 input 이벤트로 매 키입력마다 이미 rec에 반영되어 있으므로,
+                     // 재빌드가 타이핑 도중에 끼어들어도 지금까지 입력한 내용이 사라지지 않는다 — bindEdit() 참고)
+  sdEnsureIds();  // (2026-09 신규) 실시간 공유 연결 시 병합 키로 쓸 안정적인 업무 ID를 미리 보장해둔다
+  setTimeout(() => {
+    const ae = document.activeElement, row = ae && ae.closest ? ae.closest('[data-rid],[data-name]') : null;
+    const restore = (row && ae && ae.dataset && ae.dataset.k) ? {rowAttr: row.hasAttribute('data-rid') ? 'data-rid' : 'data-name', rowVal: row.hasAttribute('data-rid') ? row.dataset.rid : row.dataset.name, k: ae.dataset.k, sel: (typeof ae.selectionStart === 'number') ? [ae.selectionStart, ae.selectionEnd] : null} : null;
+    // 편집 중인 칸이 속한 스크롤 상자(업무현황/프로젝트개요/인력현황/인원 등)의 스크롤 위치도 함께 기억해뒀다가 다시 그린 뒤 그대로 되돌린다 —
+    // 그렇지 않으면 칸 하나만 고쳐도 표 전체가 다시 그려지면서 스크롤이 흔들려, 이어서 다음 칸을 클릭하려던 것이 화면이 움직인 사이 엉뚱한
+    // 칸(자리가 바뀐 다른 행)을 클릭하게 되는 사고로 이어질 수 있다.
+    const scrollState = []; document.querySelectorAll('.scroll[id]').forEach(el => { if (el.scrollTop) scrollState.push([el.id, el.scrollTop]); });
+    prepare(); saveLocal('화면 직접 입력'); setSrcStatus(); render();
+    scrollState.forEach(([id, top]) => { const el = document.getElementById(id); if (el) el.scrollTop = top; });
+    if (restore) {
+      const el = document.querySelector(`[${restore.rowAttr}="${CSS.escape(restore.rowVal)}"] [data-k="${CSS.escape(restore.k)}"]`);
+      if (el) { el.focus({preventScroll: true}); if (restore.sel && typeof el.setSelectionRange === 'function') { try { el.setSelectionRange(restore.sel[0], restore.sel[1]); } catch (e) {} } }
+    }
+    if (sd.handle && !sd.readOnly) sdWrite();  // (2026-09 신규) 실시간 공유 연결(편집 가능) 중이면 지금 변경분을 공유 파일에 즉시 반영 — 읽기 전용 연결이면 애초에 이 화면에 편집 UI가 없거나(단일파일) 있어도 절대 쓰지 않는다
+  }, 0);
+}
+function bindEdit(el, sync) {  // 매 키입력(input)마다 rec에 값만 즉시 반영(재렌더 없음) + 포커스 아웃(change) 시 commit()으로 재렌더.
+                                // 이렇게 나눠두면, change 이후 재렌더가 다음 칸 타이핑 도중에 끼어들어도 그 사이 입력분이 이미 rec에 반영돼 있어 안 없어진다.
+  el.addEventListener('input', sync);
+  el.addEventListener('change', () => { sync(); commit(); });
+}
+function cellInput(val, type, extra) { const t = type === 'num' ? 'number' : (type === 'date' ? 'date' : 'text'); return `<input type="${t}" value="${esc(val ?? '')}" ${type === 'num' ? 'step="any"' : ''} ${extra || ''}>`; }
+function autoColWidth(strs, min = 90, max = 420) {  // 칸 기본 가로폭을 입력값 길이에 맞춰 계산 (한글은 좀 더 넓게)
+  const longest = strs.reduce((a, s) => { s = String(s || ''); const wide = (s.match(/[^\x00-\xff]/g) || []).length; return Math.max(a, s.length + wide); }, 0);
+  return Math.max(min, Math.min(max, Math.round(longest * 7.2) + 20));
+}
+function syncColumnWidth(container) {  // 세부내용/이슈사항 칸: 한 행에서 가로폭을 드래그로 조절하면 같은 칸 전체(모든 행)에 동일하게 적용
+  container.querySelectorAll('textarea[data-k]').forEach(el => {
+    if (el._roAttached) return; el._roAttached = true;
+    new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const k = entry.target.dataset.k, w = Math.round(entry.target.getBoundingClientRect().width);  // border-box 폭(패딩·테두리 포함) 그대로 사용
+        container.querySelectorAll(`textarea[data-k="${k}"]`).forEach(other => {
+          if (other !== entry.target && Math.round(other.getBoundingClientRect().width) !== w) other.style.width = w + 'px';
+        });
+      }
+    }).observe(el);
+  });
+}
+
+const PROJ_FIELDS = [['id','ID','text'],['name','프로젝트명','text'],['category','구분','select'],['address','위치','text'],['lat','위도','num'],['lng','경도','num'],['scale','규모','text'],['start','착공','date'],['end','준공','date'],['scope','BIM범위','text'],['field','현장담당','text'],['enc','BIM섹션담당','text'],['anc','작업담당(A&C)','text'],['overview','개요','text']];
+const idSort = (a, b) => String(a.id ?? '').localeCompare(String(b.id ?? ''), undefined, {numeric: true, sensitivity: 'base'});
+const TASK_CATS = ['시공검토','공정관리','3D스캔','시뮬레이션','수행과제','기타업무'];
+function taskOptions(cur) {  // 업무현황의 "업무항목" 칸: 목록에서 선택 (목록에 없는 기존 값도 그대로 보존)
+  return TASK_CATS.map(c => `<option ${c === cur ? 'selected' : ''}>${c}</option>`).join('') +
+    (cur && !TASK_CATS.includes(cur) ? `<option value="${esc(cur)}" selected>${esc(cur)} (목록에 없음)</option>` : '');
+}
+function memberOptions(cur, org) {  // BIM섹션담당/작업담당(A&C) 칸: 인원(명단)에서 소속 필터해 선택
+  const list = (DATA.members || []).filter(m => m.org === org);
+  const known = list.some(m => m.name === cur);
+  return '<option value="">(선택)</option>' + list.map(m => `<option value="${esc(m.name)}" ${m.name === cur ? 'selected' : ''}>${esc(m.name)}</option>`).join('') +
+    (cur && !known ? `<option value="${esc(cur)}" selected>${esc(cur)}</option>` : '');
+}
+function checkProjCollision(rec, changedKey) {
+  // (2026-09 근본 수정) ID는 업무현황(pid)이 프로젝트를 찾아가는 유일한 열쇠(기본키)라서, 두 프로젝트가 같은 ID를
+  // 갖게 되면 proj()/projOptions() 등 "이 ID의 프로젝트"를 찾는 모든 코드가 둘 중 하나만 골라 보여주게 되고, 어느
+  // 쪽이 먼저 선택되는지는 배열 순서(추가/삭제/정렬/Excel 재병합 순서)에 따라 달라진다. 그래서 "새 프로젝트를 추가했는데
+  // 자꾸 기존 프로젝트와 연결된 것처럼 보이고, 기존 업무현황의 프로젝트명이 갑자기 바뀌는" 오류가 생긴다.
+  // → 예전에는 토스트로 "경고만" 하고 저장은 그대로 진행돼 중복 ID가 실제로 생겨버렸다. 이제는 ID 중복은 아예
+  //   저장을 막고(이전 값으로 되돌리고) 알림창으로 분명히 알린다 — 프로젝트명 중복은 오탈자 교정 등 정상적인 경우도
+  //   있을 수 있어 여전히 저장은 허용하되 토스트로만 안내한다.
+  const id = String(rec.id || '').trim(), name = String(rec.name || '').trim();
+  if (changedKey === 'id') {
+    if (id) {
+      const other = DATA.projects.find(p => p !== rec && String(p.id || '').trim() === id);
+      if (other) {
+        alert(`⚠ 이미 사용 중인 프로젝트 ID입니다: '${id}'\n→ 기존 프로젝트 '${other.name || '(이름 없음)'}' 가 같은 ID를 쓰고 있습니다.\n\nID가 겹치면 두 프로젝트가 뒤섞여 업무현황·팝업에 엉뚱한 프로젝트명이 표시되는 오류로 이어지므로, 저장하지 않고 이전 값('${rec._lastId || ''}')으로 되돌립니다.\n다른 ID를 입력해 주세요.`);
+        rec.id = rec._lastId || '';  // bindEdit의 change 핸들러가 이미 commit()을 예약해둔 뒤이므로(같은 이벤트 처리 중), 그 렌더가 실행되기 전에 값만 되돌리면 충분하다 — 여기서 다시 commit()을 부르면 같은 렌더가 두 번 실행된다
+        return;
+      }
+    }
+    rec._lastId = rec.id;  // 충돌 없이 통과한 값만 "마지막으로 유효했던 ID"로 기억해둔다 (다음 충돌 시 되돌릴 지점)
+  }
+  if (changedKey === 'name' && name) {
+    const other = DATA.projects.find(p => p !== rec && String(p.name || '').trim() === name);
+    if (other && String(other.id || '').trim() !== id) toast(`⚠ 이미 등록된 프로젝트명입니다: '${name}' → 기존 ID '${other.id}' 로 이미 등록돼 있습니다.`);
+  }
+}
+function renderEditProjects() {
+  ensureRid(DATA.projects);
+  DATA.projects.forEach(p => { if (p._lastId == null) p._lastId = p.id; });  // ID 충돌 시 되돌아갈 "마지막으로 유효했던 ID" 기준값(최초 1회만 지정)
+  // (2026-09 변경) 자동 실시간 정렬을 없앴습니다 — 칸을 고치거나 추가/삭제할 때마다 ID 순으로 표를 다시 정렬하면, 방금 고친
+  // 행이 화면의 다른 위치로 튀어버려 이어서 다른 칸을 클릭한 것이 엉뚱한(자리 이동으로 그 위치에 새로 온) 다른 프로젝트에
+  // 적용돼버리는 사고가 있었습니다. 이제는 DATA.projects 배열 순서를 그대로 화면에 표시하며(추가한 프로젝트는 항상 맨 끝에
+  // 그대로 나타남), 정렬은 아래 "ID순 정렬" 버튼을 눌렀을 때만 그 시점에 한 번 적용됩니다.
+  const rows = DATA.projects.map(p => `<tr data-rid="${p._rid}">` + PROJ_FIELDS.map(([k, , type]) =>
+    k === 'category' ? `<td><select data-k="category">${['PJT지원','수행과제','기타업무'].map(c => `<option ${p.category === c ? 'selected' : ''}>${c}</option>`).join('')}</select></td>`
+    : k === 'enc' ? `<td><select data-k="enc">${memberOptions(p.enc, 'POSCO E&C')}</select></td>`
+    : k === 'anc' ? `<td><select data-k="anc">${memberOptions(p.anc, 'POSCO A&C')}</select></td>`
+                      : `<td>${cellInput(p[k], type, `data-k="${k}"`)}</td>`
+  ).join('') + `<td><button class="rmrow" data-rm="1" title="삭제">✕</button></td></tr>`).join('');
+  $('#editProjects').innerHTML = `<table class="edittbl"><thead><tr>${PROJ_FIELDS.map(([, l]) => `<th>${l}</th>`).join('')}<th></th></tr></thead><tbody>${rows}</tbody></table>` +
+    (DATA.projects.length ? '' : '<div class="empty">등록된 프로젝트가 없습니다. "+ 프로젝트 추가"로 시작하세요.</div>');
+  $('#editProjects').querySelectorAll('tr[data-rid]').forEach(tr => {
+    const rec = DATA.projects.find(x => x._rid === tr.dataset.rid); if (!rec) return;
+    tr.querySelectorAll('[data-k]').forEach(el => {
+      const k = el.dataset.k;
+      bindEdit(el, () => { rec[k] = el.type === 'number' ? (el.value === '' ? null : +el.value) : el.value; rec._ts = Date.now(); });
+      if (k === 'id' || k === 'name') el.addEventListener('change', () => checkProjCollision(rec, k));
+    });
+    tr.querySelector('[data-rm]').onclick = () => {
+      const linked = DATA.tasks.filter(t => t.pid === rec.id);
+      let msg = `'${rec.name || rec.id}' 프로젝트를 삭제할까요?`;
+      if (linked.length) msg += `\n\n이 프로젝트에 연결된 업무현황 ${linked.length}건도 함께 삭제됩니다.\n(업무를 남겨두면 같은 ID·이름으로 프로젝트가 목록에 다시 자동으로 생겨납니다)`;
+      if (!confirm(msg)) return;
+      sdEnsureIds();  // (2026-09 신규) 실시간 공유 연결 시 삭제도 다른 사람 화면에 전달되도록 "무덤"을 남긴다
+      sdTombstone('projects', rec.id);
+      DATA.projects = DATA.projects.filter(x => x !== rec);
+      if (linked.length) { linked.forEach(t => sdTombstone('tasks', t._tid)); DATA.tasks = DATA.tasks.filter(t => t.pid !== rec.id); }
+      commit();
+    };
+  });
+}
+function nextNewProjId() {  // 기존 ID와 절대 겹치지 않는 임시 ID를 만든다 (배열 길이만 보고 'P01'처럼 만들면, 그 사이 다른 프로젝트가 삭제·추가된 경우 이미 쓰이는 값과 우연히 같아질 수 있었다)
+  const used = new Set(DATA.projects.map(p => String(p.id || '').trim()));
+  let n = DATA.projects.length + 1, id = 'NEW' + String(n).padStart(2, '0');
+  while (used.has(id)) { n++; id = 'NEW' + String(n).padStart(2, '0'); }
+  return id;
+}
+on('#addProj', 'onclick', () => {
+  const rid = newRid(), id = nextNewProjId();
+  DATA.projects.push({id, name: '', category: 'PJT지원', _rid: rid, _lastId: id, _ts: Date.now()});
+  commit();
+  setTimeout(() => {  // 새로 추가한 행이 확실히 눈에 띄도록 스크롤하고 ID 칸에 포커스를 준다(맨 아래에 추가되므로 길게 스크롤해야 보일 수 있음)
+    const tr = document.querySelector(`tr[data-rid="${rid}"]`);
+    if (tr) { tr.scrollIntoView({block: 'center'}); const el = tr.querySelector('[data-k="id"]'); if (el) el.focus({preventScroll: true}); }
+  }, 0);
+});
+on('#sortProj', 'onclick', () => { DATA.projects.sort(idSort); commit(); });  // 그 시점에 한 번만 ID 오름차순으로 정렬(실시간 자동정렬 아님)
+
+const TASK_FIELDS = [['week','주차','date'],['pid','프로젝트','select'],['task','업무항목','text'],['detail','세부내용','text'],['issue','이슈사항','text'],['start','시작일','date'],['end','종료일','date'],['progress','진행률(%)','num'],['field','현장담당','text'],['enc','BIM섹션담당','text'],['anc','작업담당(A&C)','text'],['md','투입MD','num'],['status','상태','select']];
+const bizDays = (s, e) => {  // 시작~종료일(포함)의 영업일(월~금) 수
+  const a = dparse(s), b = dparse(e); if (!a || !b || b < a) return 0;
+  let n = 0; for (let d = new Date(a); d <= b; d.setDate(d.getDate() + 1)) { const w = d.getDay(); if (w !== 0 && w !== 6) n++; }
+  return n;
+};
+const autoMd = t => { const bd = bizDays(t.start, t.end); return bd ? Math.round(bd * (+t.progress || 0) / 100 * 10) / 10 : t.md; };
+function fillWeekOptions(sel, includeAll, cur) {
+  sel.innerHTML = (includeAll ? '<option value="">전체 주차</option>' : '') + WEEKS.map(w => `<option value="${w}">${w} (${wkLabel(w)})</option>`).join('');
+  if (WEEKS.includes(cur)) sel.value = cur; else if (!includeAll) sel.value = WEEK || WEEKS[WEEKS.length - 1] || '';
+}
+function projOptions(curId) {  // 업무현황의 "프로젝트" 칸: 프로젝트명 기준으로 목록에서 선택(ID는 화면에 표기하지 않음, 값은 그대로 ID로 저장)
+  const seen = new Set();
+  const list = DATA.projects.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; })  // 방어: ID가 중복된 경우 목록에 한 번만 표시
+    .slice().sort((a, b) => String(a.name || a.id || '').localeCompare(String(b.name || b.id || ''), 'ko'));
+  const known = list.some(p => p.id === curId);
+  return '<option value="">(선택)</option>' + list.map(p => `<option value="${esc(p.id)}" ${p.id === curId ? 'selected' : ''}>${esc(p.name || p.id)}</option>`).join('') +
+    (curId && !known ? `<option value="${esc(curId)}" selected>${esc(curId)} (프로젝트개요에 없음)</option>` : '');
+}
+function renderEditTasks() {
+  ensureRid(DATA.tasks);
+  const selW = $('#editTaskWeek'); fillWeekOptions(selW, true, selW.value);
+  const q = ($('#editTaskSearch').value || '').trim();
+  const list = DATA.tasks.filter(t => (!selW.value || t.week === selW.value) && (!q || `${t.pid} ${t.task} ${t.detail || ''} ${proj(t.pid).name}`.includes(q)));
+  $('#editTaskSub').textContent = `${list.length}건 표시 중 (전체 ${DATA.tasks.length}건)`;
+  const PID_COL_W = 170;  // 프로젝트(pid) 선택 칸의 기준 폭 — 세부내용 칸의 최소폭(2배)을 여기에 맞춘다
+  const detailMin = PID_COL_W * 2;
+  const detailW = Math.max(autoColWidth(list.map(t => t.detail)), detailMin) + 'px', issueW = autoColWidth(list.map(t => t.issue)) + 'px';  // 칸 기본 폭: 입력값 길이에 맞추되, 세부내용은 프로젝트 칸의 2배보다 작아지지 않음
+  const rows = list.map(t => `<tr data-rid="${t._rid}">` + TASK_FIELDS.map(([k, , type]) =>
+    k === 'status' ? `<td><select data-k="status">${['예정','진행','완료','지연'].map(s => `<option ${t.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select></td>`
+    : k === 'pid' ? `<td><select data-k="pid" style="min-width:${PID_COL_W}px">${projOptions(t.pid)}</select></td>`
+    : k === 'task' ? `<td><select data-k="task" style="min-width:110px">${taskOptions(t.task)}</select></td>`
+    : k === 'enc' ? `<td><select data-k="enc">${memberOptions(t.enc, 'POSCO E&C')}</select></td>`
+    : k === 'anc' ? `<td><select data-k="anc">${memberOptions(t.anc, 'POSCO A&C')}</select></td>`
+    : k === 'detail' ? `<td><textarea data-k="detail" rows="1" style="resize:horizontal;overflow:auto;box-sizing:border-box;min-width:${detailMin}px;width:${detailW};white-space:pre;font:inherit;padding:4px 6px">${esc(t.detail ?? '')}</textarea></td>`
+    : k === 'issue' ? `<td><textarea data-k="issue" rows="1" style="resize:horizontal;overflow:auto;box-sizing:border-box;min-width:90px;width:${issueW};white-space:pre;font:inherit;padding:4px 6px">${esc(t.issue ?? '')}</textarea></td>`
+    : (k === 'progress' || k === 'md') ? `<td>${cellInput(t[k], type, `data-k="${k}" style="width:60px;box-sizing:border-box"` + (k === 'progress' ? ' min="0" max="100"' : '') + (k === 'md' ? ' title="시작일·종료일·진행률을 입력하면 자동 계산됩니다 (직접 수정도 가능)"' : ''))}</td>`
+                   : `<td>${cellInput(t[k], type, `data-k="${k}"`)}</td>`
+  ).join('') + `<td><button class="rmrow" data-rm="1" title="삭제">✕</button></td></tr>`).join('');
+  $('#editTasks').innerHTML = `<table class="edittbl"><thead><tr>${TASK_FIELDS.map(([, l]) => `<th>${l}</th>`).join('')}<th></th></tr></thead><tbody>${rows}</tbody></table>` +
+    (list.length ? '' : '<div class="empty">조건에 맞는 업무가 없습니다.</div>');
+  syncColumnWidth($('#editTasks'));
+  $('#editTasks').querySelectorAll('tr[data-rid]').forEach(tr => {
+    const rec = DATA.tasks.find(x => x._rid === tr.dataset.rid); if (!rec) return;
+    tr.querySelectorAll('[data-k]').forEach(el => bindEdit(el, () => {
+      rec[el.dataset.k] = el.type === 'number' ? (el.value === '' ? 0 : +el.value) : el.value;
+      // 투입MD는 시작일/종료일(영업일수) 대비 진행률로 자동 계산 – md 칸을 직접 고친 경우는 그대로 둠
+      if (el.dataset.k === 'start' || el.dataset.k === 'end' || el.dataset.k === 'progress') rec.md = autoMd(rec);
+      rec._ts = Date.now();
+    }));
+    // (2026-09 개선) 세부내용·이슈사항: 입력 중인 글자가 칸 폭보다 길어지면(내부 가로 스크롤에 가려지는 대신)
+    // 칸이 오른쪽으로 자동으로 넓어진다 — 드래그로 넓히는 기존 방식은 그대로 유지되고, 자동 확장은 그보다 좁을 때만 보정한다.
+    // syncColumnWidth의 ResizeObserver가 이 폭 변화도 함께 감지해 같은 칸(다른 행)까지 동일한 폭으로 맞춰준다.
+    tr.querySelectorAll('textarea[data-k="detail"], textarea[data-k="issue"]').forEach(ta => {
+      ta.addEventListener('input', () => { if (ta.scrollWidth > ta.clientWidth) ta.style.width = (ta.scrollWidth + 6) + 'px'; });
+    });
+    tr.querySelector('[data-rm]').onclick = () => { if (!confirm('이 업무 행을 삭제할까요?')) return; sdEnsureIds(); sdTombstone('tasks', rec._tid); DATA.tasks = DATA.tasks.filter(x => x !== rec); commit(); };
+  });
+}
+on('#addTask', 'onclick', () => {
+  // 편집기의 주차 필터가 특정 주차로 되어 있으면 그 주차로 추가(바로 보이도록), '전체 주차'면 기준 주차로 추가
+  const selW = $('#editTaskWeek'), week = (selW && selW.value) ? selW.value : (WEEK || dstr(new Date()));
+  const search = $('#editTaskSearch');
+  // 검색어가 남아있으면 방금 추가한 빈 업무(프로젝트/업무항목/세부내용이 전부 비어있음)가 검색 필터에 걸려 화면에 안 보이는 채로
+  // 남아있고, 사용자는 "안 보이니 입력이 안 된다"고 느껴 결국 화면에 보이는 다른(이미 작성돼 있던) 업무 행을 잘못 고치는 사고로
+  // 이어질 수 있다 — 그래서 새 업무를 추가할 땐 검색어를 비워 반드시 화면에 나타나도록 한다.
+  if (search && search.value) { search.value = ''; toast('검색어가 있으면 새로 추가한 빈 업무가 안 보일 수 있어 검색어를 비웠습니다.'); }
+  const rid = newRid();
+  DATA.tasks.push({week, pid: '', task: '', detail: '', start: '', end: '', progress: 0, field: '', enc: '', anc: '', md: 0, status: '예정', issue: '', _rid: rid, _tid: sdNewTid(), _ts: Date.now()});
+  commit();
+  setTimeout(() => {  // commit()의 재렌더 다음에 실행되도록(같은 매크로태스크 큐) — 새로 추가한 행이 확실히 눈에 띄도록 스크롤하고 프로젝트 선택 칸에 포커스를 준다
+    const tr = document.querySelector(`tr[data-rid="${rid}"]`);
+    if (tr) { tr.scrollIntoView({block: 'center'}); const sel = tr.querySelector('[data-k="pid"]'); if (sel) sel.focus({preventScroll: true}); }
+  }, 0);
+});
+on('#editTaskWeek', 'onchange', renderEditTasks); on('#editTaskSearch', 'oninput', renderEditTasks);
+on('#sortTaskByProj', 'onclick', () => {  // 그 시점에 한 번만 프로젝트명 가나다순으로 정렬(같은 프로젝트는 주차순) — 프로젝트개요의 'ID순 정렬'과 동일한 방식(자동 정렬 아님)
+  DATA.tasks.sort((a, b) => String(proj(a.pid).name || a.pid || '').localeCompare(String(proj(b.pid).name || b.pid || ''), 'ko') || String(a.week || '').localeCompare(String(b.week || '')));
+  commit();
+});
+
+function renderEditMembers() {
+  ensureRid(DATA.members);
+  // POSCO E&C / A&C 를 시각적으로 분리된 입력창(테이블)으로 구분 — 인원을 추가하면 해당 소속 표에 바로 들어간다
+  const section = org => {
+    const ms = DATA.members.filter(m => m.org === org);
+    const rows = ms.map(m => `<tr data-rid="${m._rid}"><td>${cellInput(m.name, 'text', 'data-k="name"')}</td><td>${cellInput(m.rank, 'text', 'data-k="rank"')}</td><td><button class="rmrow" data-rm="1" title="삭제">✕</button></td></tr>`).join('');
+    return `<div class="panel" style="margin-bottom:10px">
+      <div class="editbar" style="margin-bottom:8px"><b>${esc(org)}</b><button class="btn" data-addmem="${esc(org)}">+ 추가</button></div>
+      <table class="edittbl"><thead><tr><th>이름</th><th>직급</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      ${ms.length ? '' : '<div class="empty">등록된 인원이 없습니다.</div>'}</div>`;
+  };
+  $('#editMembers').innerHTML = `<div class="grid g2">${section('POSCO E&C')}${section('POSCO A&C')}</div>`;
+  $('#editMembers').querySelectorAll('tr[data-rid]').forEach(tr => {
+    const rec = DATA.members.find(x => x._rid === tr.dataset.rid); if (!rec) return;
+    tr.querySelectorAll('[data-k]').forEach(el => bindEdit(el, () => { rec[el.dataset.k] = el.value; rec._ts = Date.now(); }));
+    tr.querySelector('[data-rm]').onclick = () => { if (!confirm(`'${rec.name}' 인원을 명단에서 삭제할까요?\n(과거 근태·업무 기록은 그대로 남습니다)`)) return; sdTombstone('members', rec.name); DATA.members = DATA.members.filter(x => x !== rec); commit(); };
+  });
+  $('#editMembers').querySelectorAll('[data-addmem]').forEach(btn => btn.onclick = () => { DATA.members.push({name: '', org: btn.dataset.addmem, rank: '', _rid: newRid(), _ts: Date.now()}); commit(); });
+}
+
+let editStaffWeek = null;
+function recalcAttendance(s) { const cnt = c => (s.days || []).reduce((a, d) => a + ((d || '').includes(c) ? 1 : 0), 0); s.trip = cnt('출'); s.overtime = cnt('야'); s.weekend = cnt('주'); s.leave = cnt('연') + cnt('반') * 0.5; }
+function renderEditStaff() {
+  if (editStaffWeek == null) editStaffWeek = WEEK || dstr(new Date());
+  const sel = $('#editStaffWeek');
+  sel.innerHTML = WEEKS.map(w => `<option value="${w}" ${w === editStaffWeek ? 'selected' : ''}>${w} (${wkLabel(w)})</option>`).join('') + (WEEKS.includes(editStaffWeek) ? '' : `<option value="${editStaffWeek}" selected>${editStaffWeek} (${wkLabel(editStaffWeek)}) · 신규</option>`);
+  if (!DATA.members.length) { $('#editStaff').innerHTML = '<div class="empty">먼저 위 "③ 인원"에 인력을 등록하세요.</div>'; return; }
+  const w = editStaffWeek;
+  const rows = DATA.members.map(m => {
+    const s = DATA.staff.find(x => x.week === w && x.name === m.name) || {days: []};
+    const days = DAYN.map((d, i) => `<td>${cellInput((s.days || [])[i], 'text', `data-day="${i}"`)}</td>`).join('');
+    return `<tr data-name="${esc(m.name)}"><td style="white-space:nowrap"><b>${esc(m.name)}</b> <small style="color:var(--ink3)">${esc((m.org || '').replace('POSCO ', ''))} ${esc(m.rank || '')}</small></td>${days}<td>${cellInput(s.note, 'text', 'data-k="note"')}</td></tr>`;
+  }).join('');
+  $('#editStaff').innerHTML = `<table class="edittbl"><thead><tr><th>이름</th>${DAYN.map(d => `<th>${d}</th>`).join('')}<th>비고</th></tr></thead><tbody>${rows}</tbody></table>`;
+  $('#editStaff').querySelectorAll('tr[data-name]').forEach(tr => {
+    const name = tr.dataset.name;
+    const withRow = (fn, doCommit) => { let s = DATA.staff.find(x => x.week === w && x.name === name);
+      if (!s) { const m = DATA.members.find(x => x.name === name); s = {week: w, name, org: m ? m.org : '', rank: m ? m.rank : '', days: ['', '', '', '', '', '', ''], trip: 0, overtime: 0, weekend: 0, leave: 0, note: '', projects: ''}; DATA.staff.push(s); }
+      if (!s.days) s.days = ['', '', '', '', '', '', '']; fn(s); s._ts = Date.now(); recalcAttendance(s); if (doCommit) commit(); };
+    tr.querySelectorAll('[data-day]').forEach(el => { const sync = () => withRow(s => s.days[+el.dataset.day] = el.value, false); el.addEventListener('input', sync); el.addEventListener('change', () => withRow(s => s.days[+el.dataset.day] = el.value, true)); });
+    tr.querySelectorAll('[data-k]').forEach(el => { const sync = () => withRow(s => s[el.dataset.k] = el.value, false); el.addEventListener('input', sync); el.addEventListener('change', () => withRow(s => s[el.dataset.k] = el.value, true)); });
+  });
+}
+on('#editStaffWeek', 'onchange', e => { editStaffWeek = e.target.value; renderEditStaff(); });
+on('#editStaffWeekGo', 'onclick', () => { const v = $('#editStaffWeekPick').value; if (!v) return; editStaffWeek = normalizeWeek(v); renderEditStaff(); });
+
+function renderEditAll() { renderEditProjects(); renderEditTasks(); renderEditMembers(); renderEditStaff(); }
+
+/* ---- 엑셀로 내보내기 (기존 취합 방식과 동일한 시트/헤더 구조로 저장) ---- */
+const XLS_HEADERS = {
+  proj: ['프로젝트ID','프로젝트명','구분','발주처','위치(주소)','위도','경도','규모','착공(시작)','준공(종료)','BIM적용범위','현장담당(E&C)','BIM섹션담당(E&C)','작업담당(A&C)','IFC경로','IFC파일명','프로젝트개요'],
+  task: ['주차','프로젝트ID','프로젝트명','업무항목','세부내용','시작일','종료일','진행률(%)','현장담당(E&C)','BIM섹션담당(E&C)','작업담당(A&C)','투입MD','상태','이슈사항'],
+  member: ['이름','소속','직급','비고'],
+  staff: ['주차','이름','소속','직급','담당프로젝트','월','화','수','목','금','토','일','비고']
+};
+function exportExcel() {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([XLS_HEADERS.proj, ...DATA.projects.map(p => [p.id, p.name, p.category, p.client, p.address, p.lat, p.lng, p.scale, p.start, p.end, p.scope, p.field, p.enc, p.anc, p.ifcPath, p.ifc, p.overview])]), '프로젝트개요');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([XLS_HEADERS.task, ...DATA.tasks.map(t => [t.week, t.pid, proj(t.pid).name, t.task, t.detail, t.start, t.end, t.progress, t.field, t.enc, t.anc, t.md, t.status, t.issue])]), '업무현황');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([XLS_HEADERS.member, ...DATA.members.map(m => [m.name, m.org, m.rank, m.note])]), '인원');
+  const staffRows = DATA.staff.filter(s => s.trip || s.overtime || s.weekend || s.leave || (s.days || []).some(Boolean) || s.note || s.projects)
+    .map(s => [s.week, s.name, s.org, s.rank, s.projects, ...((s.days && s.days.length ? s.days : ['', '', '', '', '', '', ''])), s.note]);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([XLS_HEADERS.staff, ...staffRows]), '인력현황');
+  const d = new Date(), p2 = n => String(n).padStart(2, '0');
+  XLSX.writeFile(wb, `주간업무현황_내보내기_${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}.xlsx`);
+  toast('엑셀로 내보냈습니다. 기존 방식(Excel 파일 연결 / 불러오기 / build_dashboard.py)으로 이어서 반영하세요.');
+}
+$('#btnExport').onclick = exportExcel;
+
+/* ---- 공유용 단일파일(HTML) 다운로드 : 지금 화면(브라우저 메모리)의 DATA를 그대로 담아, '데이터 입력' 탭만 제외한 단일 HTML을 즉석에서 만들어 다운로드한다.
+   build_single.py(파이썬)와 동일한 결과를 웹페이지 안에서 만들어내므로, data/data.js를 다시 만들거나 이 세션에 새 데이터를 올릴 필요 없이
+   "지금 이 화면에 보이는" 최신 정보를 그대로 공유 파일로 즉시 내보낼 수 있다.
+   - 웹서버(http://, https://)로 열었으면 fetch()로 자기 자신과 lib/*.js를 다시 읽어와 조립한다.
+   - 파일을 직접 더블클릭(file://)해서 연 경우 브라우저가 file:// 끼리의 fetch()를 막기 때문에:
+     · 이미 단일파일(dashboard_single.html)이면 — lib가 이미 다 들어있으므로 그대로(추가 입력 없이) 동작한다.
+     · 다중 파일(dashboard.html)이면 — lib/*.js 를 새로 읽어올 방법이 없으므로, 이 dashboard.html이 들어있는
+       폴더를 (최초 1회) 사용자가 선택하게 해서 그 안의 lib 파일들을 읽어 붙인다. 이때 폴더 핸들을 IndexedDB에
+       저장해두고 다음부터는 자동으로 재사용한다('파일 지정…'/'Excel 파일 연결'과 같은 방식) — 완전한 자동
+       지정은 브라우저 보안정책상 불가능하지만, 처음 한 번만 선택하면 이후로는 창이 뜨지 않는다.
+       ⚠ 이 선택창(showDirectoryPicker/webkitdirectory)은 버튼 클릭이라는 "사용자 동작(user gesture)"이 있어야만
+       브라우저가 열어주므로, 그 앞에 alert() 같은 막힘창을 두면 안 된다 — 사용자가 alert을 읽는 동안 시간이
+       지나 그 사용자 동작이 만료되어(브라우저가 "진짜 사용자가 지금 누른 것"으로 인정하는 유효시간이 지나서)
+       선택창 자체가 아예 뜨지 않는 문제가 있었다. 그래서 안내는 non-blocking 토스트로만 띄운다. */
+async function collectDirFiles(handle, map, depth = 0) {  // 폴더(+하위 폴더)의 파일을 파일명(basename) 기준으로 모은다 — 아래 exportSingleFile 전용
+  for await (const [name, h] of handle.entries()) {
+    if (h.kind === 'file') { if (!map.has(name)) map.set(name, h); }
+    else if (h.kind === 'directory' && depth < 3) await collectDirFiles(h, map, depth + 1);
+  }
+}
+async function exportSingleFile() {
+  const btn = $('#btnSingleExport'); const oldLabel = btn.textContent;
+  btn.disabled = true; btn.textContent = '만드는 중…';
+  try {
+    const safe = js => js.replace(/<\/script/g, '<\\/script');
+    const isFile = location.protocol === 'file:';
+    // 이 페이지 자신의 뼈대(HTML)를 구한다 — http(s)면 원본 파일을 fetch로 다시 읽고,
+    // file://면 fetch가 안 되니 지금 이 페이지의 살아있는 DOM(outerHTML)을 그대로 뼈대로 쓴다
+    // ('데이터 입력' 탭 등 실제 내용물은 어차피 DATA(JSON)로 통째로 갈아끼우므로 문제없다).
+    let html;
+    if (!isFile) {
+      const r = await fetch(location.pathname.split('/').pop() || 'dashboard.html', {cache: 'no-store'});
+      if (!r.ok) throw new Error('페이지 원본을 다시 불러오지 못했습니다(' + r.status + ')');
+      html = await r.text();
+    } else {
+      html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+    }
+    // 주의: 이 함수 안에서 스크립트 닫는 태그 문자열을 그대로 적으면(문자열/템플릿 리터럴/주석 안이어도 마찬가지)
+    // 이 dashboard.html 자체를 파싱하는 브라우저의 HTML 파서가 거기서 이 script 블록이 끝난 걸로 오인해
+    // 파일이 깨진다 — 그래서 아래에서는 항상 태그의 <와 /script 사이에 백슬래시를 넣어서 적는다
+    // (실행 시 문자열 값 자체는 정상적인 닫는 태그와 동일함 — safe()와 같은 원리).
+    // 주의: 아래에서 큰(수십~수백KB) 라이브러리/데이터 문자열을 끼워 넣을 때 String.replace(찾을값, 넣을값)의
+    // "넣을값"에 그 문자열을 그대로 주면 안 된다 — replace()는 넣을값 안에 우연히 $&, $`, $' 같은 조합이
+    // 있으면(수백KB 분량 압축 코드에는 흔하다) 그것을 "특수 치환 패턴"으로 오해해 엉뚱한 내용을 끼워 넣어
+    // 파일을 깨뜨린다. 그래서 replace() 대신 항상 위치를 찾아 slice로 직접 이어붙인다.
+    const SCRIPT_OPEN_XLSX = '<script src="lib/xlsx.full.min.js"><\/script>';
+    const alreadyBundled = !html.includes(SCRIPT_OPEN_XLSX);
+    // lib 원문을 구하는 방법을 하나로 통일한다: http(s)면 fetch, file://+다중파일이면 사용자가 고른 폴더에서 찾는다.
+    // (alreadyBundled면 lib가 필요 없으니 이 블록 자체가 아예 실행되지 않는다 — 그 경우 폴더 선택 창도 뜨지 않는다.)
+    let fileMap = null;
+    if (!alreadyBundled && isFile) {
+      if (FSA) {
+        // 처음 한 번 선택한 폴더를 기억해두고(idb 'exportDir') 다음부터는 묻지 않고 재사용한다 — "자동 지정".
+        let dirHandle = await idb.get('exportDir');
+        if (dirHandle && !(await ensurePerm(dirHandle))) dirHandle = null;
+        if (!dirHandle) {
+          try { dirHandle = await showDirectoryPicker({mode: 'read'}); }
+          catch (e) { throw new Error(e.name === 'AbortError' ? '폴더 선택이 취소되었습니다' : e.message); }
+          await idb.set('exportDir', dirHandle);
+        }
+        fileMap = new Map();
+        await collectDirFiles(dirHandle, fileMap);
+      } else {
+        // showDirectoryPicker 미지원 브라우저용 대안(<input webkitdirectory>) — 안내는 막힘창(alert) 대신
+        // 토스트로만 띄우고, 클릭(picker.click())은 버튼 클릭 직후 지연 없이 바로 실행한다.
+        toast('폴더 선택 창에서 이 dashboard.html이 들어있는(lib 폴더가 함께 있는) 폴더를 선택해 주세요.');
+        const picker = $('#folderPicker');
+        const files = await new Promise(resolve => {
+          const onChange = () => { cleanup(); resolve([...picker.files]); };
+          const onFocus = () => { setTimeout(() => { if (!picker.files.length) { cleanup(); resolve([]); } }, 400); };
+          const cleanup = () => { picker.removeEventListener('change', onChange); window.removeEventListener('focus', onFocus); };
+          picker.value = '';
+          picker.addEventListener('change', onChange);
+          window.addEventListener('focus', onFocus);
+          picker.click();
+        });
+        if (!files.length) throw new Error('폴더 선택이 취소되었습니다');
+        fileMap = new Map(files.map(f => [(f.webkitRelativePath || f.name).split('/').pop(), f]));
+      }
+      const need = ['xlsx.full.min.js', 'chart.umd.min.js', 'leaflet.js', 'three.min.js', 'leaflet.css'];
+      const missing = need.filter(n => !fileMap.has(n));
+      if (missing.length) { await idb.set('exportDir', null); throw new Error('선택한 폴더에서 다음 파일을 찾지 못했습니다: ' + missing.join(', ') + ' — lib 폴더가 함께 있는 BIM_Dashboard 폴더를 선택했는지 확인해 주세요.'); }
+    }
+    const rd = async p => {
+      if (fileMap) {
+        const f = fileMap.get(p.split('/').pop()); if (!f) throw new Error(p + ' 파일을 찾지 못했습니다');
+        return f.getFile ? (await f.getFile()).text() : f.text();  // FSA 핸들이면 getFile() 경유, <input webkitdirectory>의 File이면 바로 text()
+      }
+      const r = await fetch(p, {cache: 'no-store'}); if (!r.ok) throw new Error(p + ' 불러오기 실패(' + r.status + ')'); return r.text();
+    };
+    if (!alreadyBundled) {
+      // 주의: 이 문자열을 한 조각으로 그대로 적으면 build_single.py(파이썬) 쪽에서 dashboard.html을
+      // dashboard_single.html로 합칠 때 같은 문자열을 찾아 전부(!) 바꿔버려서 — 진짜 <link> 태그뿐 아니라
+      // 바로 이 줄 자체까지 — CSS 내용으로 잘못 치환해 dashboard_single.html의 이 코드가 깨진다.
+      // 그래서 dashboard_single.html 안에서는 두 조각으로 나눠 합쳐서 비교/검색한다.
+      const cssTag = '<link rel="stylesheet" href="lib/leaflet.css"' + '>';
+      const i0 = html.indexOf(cssTag);
+      html = html.slice(0, i0) + '<style>' + await rd('lib/leaflet.css') + '</style>' + html.slice(i0 + cssTag.length);
+      for (const lib of ['xlsx.full.min.js', 'chart.umd.min.js', 'leaflet.js', 'three.min.js']) {
+        const tag = `<script src="lib/${lib}"><\/script>`;
+        const i = html.indexOf(tag);
+        if (i === -1) throw new Error(tag + ' 위치를 찾지 못했습니다');
+        html = html.slice(0, i) + `<script>/* ${lib} */\n` + safe(await rd('lib/' + lib)) + '\n<\/script>' + html.slice(i + tag.length);
+      }
+    }
+    // 데이터 : data/data.js 파일이 아니라 "지금 이 화면"의 실시간 DATA(방금 입력한 내용 포함)를 그대로 담는다
+    const d = new Date(), p2 = n => String(n).padStart(2, '0');
+    const meta = {generated: `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}`, sources: (window.DASH_DATA && DASH_DATA.sources) || ['화면에서 직접 내보냄']};
+    const freshDataJs = 'window.DASH_DATA = ' + JSON.stringify({projects: DATA.projects, tasks: DATA.tasks, staff: DATA.staff, members: DATA.members, ...meta}) + ';\n';
+    const SCRIPT_SRC_DATA = '<script src="data/data.js"><\/script>';
+    if (html.includes(SCRIPT_SRC_DATA)) {
+      const i = html.indexOf(SCRIPT_SRC_DATA);
+      html = html.slice(0, i) + '<script>/* data.js */\n' + safe(freshDataJs) + '<\/script>' + html.slice(i + SCRIPT_SRC_DATA.length);
+    } else {
+      const m = html.indexOf('<script>/* data.js */');
+      if (m === -1) throw new Error('data.js 삽입 위치를 찾지 못했습니다');
+      const closeTag = '<\/script>';
+      const mEnd = html.indexOf(closeTag, m) + closeTag.length;
+      html = html.slice(0, m) + '<script>/* data.js */\n' + safe(freshDataJs) + closeTag + html.slice(mEnd);
+    }
+    // '데이터 입력' 탭(편집 화면)은 외부 공유용에서 제외한다. 단, 이미 단일파일(dashboard_single.html)에서
+    // 다시 내보내는 경우(alreadyBundled)는 그 탭이 애초에 없으므로 건드리지 않는다 — 시도하면 실제 탭 대신
+    // 지금 이 코드 자신의 소스(이 문자열이 적힌 줄 자체)와 잘못 일치해 코드가 잘려나갈 위험이 있기 때문.
+    if (!alreadyBundled) {
+      // (위 leaflet.css 와 같은 이유로 두 조각으로 나눠 적는다 — build_single.py가 전체 치환할 때
+      // 이 줄 자체와 우연히 겹치지 않도록)
+      html = html.replace('<div class="tab" data-v="edit">' + '데이터 입력</div>', '');
+      const secStart = html.indexOf('<section class="view" id="v-edit">');
+      if (secStart !== -1) { const secEnd = html.indexOf('</section>', secStart) + '</section>'.length; html = html.slice(0, secStart) + html.slice(secEnd); }
+    }
+    // web-ifc 지연 로드 라이브러리 내장 (아직 없을 때만 — 단일파일에서 다시 내보낼 땐 이미 들어있음)
+    // 주의: 검사할 태그 문자열을 한 조각으로 그대로 적으면, 지금 이 코드 자신의 소스 안에 있는
+    // (바로 이 줄 자체의) 같은 문자열과 우연히 일치해버려 "이미 내장돼 있다"고 잘못 판단한다
+    // (앞서 스크립트 닫는 태그 문제와 같은 종류의 자기참조 함정) — 그래서 두 조각으로 나눠 합쳐서 비교한다.
+    const WEBIFC_TAG_A = '<script type="text/plain" data-lib="web-ifc-api', WEBIFC_TAG_B = '-iife.js">';
+    if (!html.includes(WEBIFC_TAG_A + WEBIFC_TAG_B)) {
+      let emb = '';
+      for (const lib of ['web-ifc-api-iife.js', 'web-ifc-wasm.js']) emb += `<script type="text/plain" data-lib="${lib}">` + safe(await rd('lib/' + lib)) + '<\/script>\n';
+      const bodyIdx = html.lastIndexOf('</body>');
+      html = html.slice(0, bodyIdx) + emb + html.slice(bodyIdx);
+    }
+    const blob = new Blob([html], {type: 'text/html'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'dashboard_single.html'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+    toast('dashboard_single.html 다운로드 완료 — 지금 화면의 데이터가 그대로 담겨 있습니다 (데이터 입력 탭 제외)');
+  } catch (e) {
+    alert('단일파일 생성 실패: ' + e.message + '\n\nfile://로 직접 연 경우 dashboard.html이 들어있는(lib 폴더가 함께 있는) 폴더를 선택했는지, 웹서버로 연 경우 lib/ 폴더가 이 페이지와 같은 위치에 있는지 확인해 주세요.');
+  } finally {
+    btn.disabled = false; btn.textContent = oldLabel;
+  }
+}
+on('#btnSingleExport', 'onclick', exportSingleFile);
+
+/* ============================================================ 시작 */
+function envCheck() {
+  const embedded = location.href.startsWith('about:') || (window.self !== window.top);
+  const libsOk = typeof XLSX !== 'undefined' && typeof Chart !== 'undefined' && typeof THREE !== 'undefined' && typeof L !== 'undefined';
+  if (embedded || !libsOk) {
+    const bar = document.createElement('div');
+    bar.style.cssText = 'background:#C2604B;color:#fff;padding:8px 22px;font-size:12.5px;border-bottom:1px solid #9C4432';
+    bar.innerHTML = embedded
+      ? '⚠ <b>웹 미리보기(iframe) 안에서 열렸습니다.</b> 이 상태에서는 보안 프록시 오류·파일 접근 제한이 발생합니다. 파일을 <b>탐색기(네트워크 드라이브)에서 직접 더블클릭</b>하거나, 미리보기의 <b>다운로드/새 탭에서 열기</b>로 여세요. (단일 파일 버전 dashboard_single.html 은 미리보기에서도 차트가 표시됩니다)'
+      : '⚠ <b>lib 폴더의 라이브러리를 불러오지 못했습니다.</b> dashboard.html 과 lib/, data/ 폴더를 같은 위치에 두거나, 단일 파일 버전 dashboard_single.html 을 사용하세요.';
+    document.body.prepend(bar);
+  }
+  if (!libsOk) throw new Error('libraries missing');
+}
+(function init() {
+  envCheck();
+  let ls = null; try { ls = JSON.parse(localStorage.getItem('bimdash.data') || 'null');
+    // data.js 가 브라우저에 저장된 데이터보다 새로 생성되었으면 저장본을 버리고 data.js 사용 (오래된 표시 방지)
+    const savedAt = +localStorage.getItem('bimdash.savedAt') || 0, gen = window.DASH_DATA && DASH_DATA.generated ? new Date(DASH_DATA.generated.replace(' ', 'T')).getTime() : 0;
+    if (ls && gen && gen > savedAt) { ls = null; localStorage.removeItem('bimdash.data'); localStorage.removeItem('bimdash.src'); setTimeout(() => toast('data.js 가 더 최신이라 브라우저 저장 데이터를 초기화했습니다'), 500); }
+  } catch (e) {}
+  if (ls && ls.projects) {
+    DATA = ls;
+    // 브라우저에 예전 인원 명단이 저장돼 있던 경우, 최신 확정 명단(DEFAULT_MEMBERS)으로 한 번만 강제 갱신 —
+    // 그래야 어느 PC에서 언제 열든 항상 같은 인원 명단이 표시된다. 이 이후의 수동 수정은 그대로 유지된다.
+    if (localStorage.getItem('bimdash.membersVer') !== MEMBERS_VERSION) {
+      DATA.members = DEFAULT_MEMBERS.map(x => ({...x}));
+      try { localStorage.setItem('bimdash.data', JSON.stringify(DATA)); } catch (e) {}
+    }
+  } else if (window.DASH_DATA) DATA = {projects: DASH_DATA.projects || [], tasks: DASH_DATA.tasks || [], staff: DASH_DATA.staff || [], members: DASH_DATA.members || []};
+  try { localStorage.setItem('bimdash.membersVer', MEMBERS_VERSION); } catch (e) {}
+  prepare(); setSrcStatus(); render(); restoreIfcDir(); restoreExcel(); restoreSharedData();
+  addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal.open').forEach(m => closeModal(m.id)); });
+})();
+</script>
+</body>
+</html>

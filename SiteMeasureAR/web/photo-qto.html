@@ -1,0 +1,1559 @@
+<title>현장 포토 물량</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: 흰 바탕 카드 세 장 — ① 사진(찍기·불러오기, 기준 치수) ② 기능 탭(개수·면적부피·토공·길이)과 그 도구 ③ 기능별 집계와 총합계. 강조는 한 가지 파랑, 사진 위 표시는 라벨 색. */
+:root{
+  --bg:#f5f6f8; --surface:#ffffff; --ink:#0f172a; --muted:#5b6474; --line:#e3e6eb; --soft:#f0f2f5;
+  --accent:#2f62f5; --accent-ink:#ffffff; --accent-soft:#e9efff; --warn:#c2410c; --warn-soft:#fff3eb; --ok:#15803d;
+  --font-body:"Noto Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --font-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r-card:16px; --r-ctl:10px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0d1117; --surface:#161b22; --ink:#e8edf3; --muted:#9aa5b4; --line:#2a313b; --soft:#1e252e;
+  --accent:#6b93ff; --accent-ink:#0b1020; --accent-soft:#1c2848; --warn:#ff9b63; --warn-soft:#2e1d12; --ok:#4ade80; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0d1117; --surface:#161b22; --ink:#e8edf3; --muted:#9aa5b4; --line:#2a313b; --soft:#1e252e;
+  --accent:#6b93ff; --accent-ink:#0b1020; --accent-soft:#1c2848; --warn:#ff9b63; --warn-soft:#2e1d12; --ok:#4ade80; color-scheme:dark }
+
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:860px;margin:0 auto;padding-block:16px 40px;
+  padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));
+  display:flex;flex-direction:column;gap:14px}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;justify-content:center;background:#fff;border-radius:12px;padding:6px 10px;box-shadow:inset 0 0 0 1px var(--line);flex:none}
+.logo img{display:block;height:34px;width:auto;max-width:100%}
+.brand{display:flex;flex-direction:column;min-width:0;flex:1}
+.meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin-top:2px}
+.ver{font-family:var(--font-num);font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.views{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:4px;background:var(--ink);border-radius:14px}
+.views button{border:0;background:transparent;color:color-mix(in srgb,var(--bg) 70%,transparent);border-radius:10px;min-height:46px;font-size:14.5px;flex-direction:column;gap:0;padding:6px 4px}
+.views button small{font-size:11px;font-weight:500;opacity:.8}
+.views button[aria-selected="true"]{background:var(--bg);color:var(--ink)}
+.view{display:flex;flex-direction:column;gap:14px}
+.ar{padding:18px;display:flex;flex-direction:column;gap:14px}
+.ar h2{font-size:18px}
+.ar p{margin:0;color:var(--muted);font-size:14px;max-width:62ch}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:0;padding:0;list-style:none;counter-reset:st}
+.steps li{background:var(--soft);border-radius:12px;padding:12px;font-size:13.5px;counter-increment:st}
+.steps li::before{content:counter(st);display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:12px;margin-right:8px}
+.steps b{display:block;margin:6px 0 2px;font-size:14px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13.5px;margin:0}
+.kv dt{color:var(--muted)} .kv dd{margin:0}
+.badge-st{align-self:flex-start;font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;background:var(--warn-soft);color:var(--warn)}
+details.grp > summary{list-style:none;cursor:pointer}
+details.grp > summary::-webkit-details-marker{display:none}
+details.grp > summary .chev{transition:transform .15s;display:inline-block;margin-left:6px}
+details.grp[open] > summary .chev{transform:rotate(90deg)}
+.ghead b{font-family:var(--font-num);font-weight:600;font-size:13px;color:var(--ink);margin-left:auto;margin-right:8px}
+.rep{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+.rep table{border-collapse:collapse;width:100%;font-size:13px;min-width:560px}
+.rep th,.rep td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+.rep th{background:var(--soft);font-weight:600;color:var(--muted);font-size:12px}
+.rep td:nth-child(-n+3),.rep th:nth-child(-n+3){text-align:left}
+.rep td{font-variant-numeric:tabular-nums}
+.rep tr.tot td{font-weight:700;background:color-mix(in srgb,var(--soft) 60%,transparent)}
+.repimg{border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#0b0d10}
+.repimg img{display:block;width:100%;max-width:100%}
+@media (prefers-reduced-motion: reduce){ details.grp > summary .chev{transition:none} }
+h1{font-size:22px;font-weight:800;margin:0;letter-spacing:-.02em}
+.top p{margin:2px 0 0;font-size:13.5px;color:var(--muted)}
+h2{font-size:16px;font-weight:700;margin:0;letter-spacing:-.01em}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-card);box-shadow:0 1px 2px rgba(15,23,42,.04),0 4px 16px rgba(15,23,42,.04)}
+button,.btn{font:inherit;font-weight:600;font-size:14px;min-height:44px;padding:8px 14px;border-radius:var(--r-ctl);border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center;line-height:1.2}
+button:hover,.btn:hover{border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+.btn.primary,button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:focus-visible,.btn:focus-within,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 45%,transparent);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+.ico{width:18px;height:18px;flex:none}
+
+/* ① 사진 */
+.photo{overflow:hidden}
+.drop{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:40px 20px;border:2px dashed var(--line);border-radius:12px;margin:12px;background:var(--soft)}
+.drop .big{width:44px;height:44px;color:var(--accent)}
+.drop-t{font-size:17px;font-weight:700;margin:0}
+.drop-s{font-size:13.5px;color:var(--muted);margin:0;max-width:44ch}
+.drop-b{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+.stage{position:relative;background:#0b0d10}
+#cv{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none}
+#loupe{position:absolute;top:10px;width:124px;height:124px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none}
+.total{position:absolute;left:10px;top:10px;pointer-events:none;display:flex;align-items:baseline;gap:8px;padding:6px 12px 6px 10px;border-radius:12px;background:rgba(255,255,255,.94);color:#0f172a;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.total .dot{width:10px;height:10px;border-radius:50%;align-self:center}
+.total .n{font-family:var(--font-num);font-weight:600;font-size:22px;line-height:1}
+.total .l{font-size:12.5px;font-weight:600;color:#475569}
+.stbar{position:absolute;right:10px;top:10px;display:flex;gap:6px}
+.sbtn{min-height:40px;min-width:40px;padding:0 10px;border-radius:12px;border:0;background:rgba(255,255,255,.94);color:#0f172a;box-shadow:0 4px 14px rgba(0,0,0,.2);font-size:13px;gap:4px}
+.sbtn svg{width:19px;height:19px}
+.sbtn:disabled{opacity:.55}
+.sbtn[aria-pressed="true"]{background:#2f62f5;color:#fff}
+.einfo{margin:0;font-size:13.5px;color:var(--muted)}
+.tag{position:absolute;left:10px;bottom:10px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:rgba(15,23,42,.72);color:#fff;pointer-events:none}
+.pbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 12px;border-top:1px solid var(--line)}
+.pbar .grow{flex:1 1 auto}
+.scale{min-height:40px;border-radius:999px;font-size:13px;padding:6px 12px}
+.scale.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.scale.ok{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.pbar .btn{min-height:40px;font-size:13.5px;padding:6px 12px}
+
+/* ② 기능 탭과 도구 */
+.fn{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:4px;background:var(--soft);border-radius:14px;border:1px solid var(--line)}
+.fn button{border:0;background:transparent;border-radius:10px;flex-direction:column;gap:2px;padding:8px 4px;min-height:54px;font-size:14px}
+.fn button small{font-size:11px;font-weight:500;color:var(--muted)}
+.fn button[aria-selected="true"]{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(15,23,42,.12)}
+.fn button[aria-selected="true"] small{color:var(--accent)}
+.tool{padding:14px;display:flex;flex-direction:column;gap:12px}
+.hint{margin:0;font-size:14.5px;font-weight:500}
+.tgrp{display:flex;flex-direction:column;gap:10px}
+.seg{display:flex;background:var(--soft);border-radius:var(--r-ctl);padding:3px;gap:3px}
+.seg button{flex:1;min-height:40px;border:0;background:transparent;border-radius:8px;font-size:13.5px}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(15,23,42,.12)}
+.slider{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);min-width:0}
+.slider input{flex:1;min-width:0;accent-color:var(--accent)}
+.val{font-family:var(--font-num);font-size:12.5px;color:var(--ink);min-width:3.2em;text-align:right}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row > button{flex:1 1 120px;min-height:40px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.chips .lbl{font-size:12.5px;color:var(--muted);font-weight:600;margin-right:2px}
+.chip{min-height:34px;font-size:13px;font-weight:600;padding:4px 12px;border-radius:999px;background:var(--soft);border-color:transparent}
+.chip[aria-pressed="true"]{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+.labels{display:flex;gap:6px;flex-wrap:wrap}
+.what{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted);min-width:0}
+.what span{flex:none}
+.what input{flex:1}
+.lab{min-height:38px;border-radius:999px;padding:4px 12px 4px 8px;font-size:13.5px;gap:8px}
+.lab .sw{width:16px;height:16px;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.7)}
+.lab .c{font-family:var(--font-num);font-size:12.5px;color:var(--muted)}
+.lab[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.lab.add{color:var(--accent);border-style:dashed}
+.form{display:flex;gap:8px;flex-wrap:wrap}
+.form label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);flex:1 1 120px;min-width:0}
+input[type=number],input[type=text],select{font:inherit;min-height:42px;padding:6px 10px;border:1px solid var(--line);border-radius:var(--r-ctl);background:var(--surface);color:var(--ink);min-width:0;width:100%}
+
+/* ③ 집계 */
+.results{padding:14px;display:flex;flex-direction:column;gap:12px}
+.rhead{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.rhead .acts{display:flex;gap:6px;flex-wrap:wrap}
+.rhead .acts button{min-height:38px;font-size:13px;padding:6px 12px}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.sum{background:var(--soft);border-radius:12px;padding:10px 12px;min-width:0}
+.sum dt{font-size:12.5px;color:var(--muted);font-weight:600}
+.sum dd{margin:2px 0 0;font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:600;font-size:19px;overflow-wrap:anywhere}
+.sum dd small{display:block;font-size:12px;font-weight:500;color:var(--muted)}
+.grp{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ghead{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;background:var(--soft);font-size:13.5px;font-weight:700}
+.ghead span{font-weight:500;color:var(--muted);font-size:12.5px}
+.item{display:grid;grid-template-columns:26px 1fr auto;gap:6px 10px;padding:11px 12px;border-top:1px solid var(--line);align-items:center}
+.ghead + .item{border-top:0}
+.item.active{background:color-mix(in srgb,var(--accent-soft) 60%,transparent)}
+.no{font-family:var(--font-num);font-weight:600;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;color:#fff;box-shadow:inset 0 0 0 2px rgba(255,255,255,.6)}
+.main{display:flex;gap:6px;align-items:center;flex-wrap:wrap;min-width:0}
+.main select,.main input{min-height:36px;padding:4px 8px;width:auto}
+.main input[type=text]{width:140px}
+.thick{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
+.thick input{width:74px}
+.q{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:600;text-align:right;white-space:nowrap;font-size:15px}
+.q small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+.sub{grid-column:2 / 4;font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.sub .acts{display:flex;gap:6px}
+.sub button{min-height:32px;padding:2px 10px;font-size:12.5px;font-weight:500}
+.cond{grid-column:2 / 4;font-size:13px;min-width:0}
+.cond summary{cursor:pointer;color:var(--muted);min-height:32px;display:flex;align-items:center}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px;margin-top:6px}
+.fld{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);min-width:0}
+.fld input,.fld select{min-height:38px;padding:4px 8px}
+.res{grid-column:2 / 4;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:2px 16px;font-size:12.5px;min-width:0}
+.res div{display:flex;justify-content:space-between;gap:6px;padding-block:1px}
+.res b{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:600}
+.warnline{grid-column:2 / 4;font-size:12.5px;color:var(--warn);margin:0;font-weight:500;background:var(--warn-soft);padding:6px 10px;border-radius:8px}
+.gtot{display:flex;justify-content:space-between;padding:9px 12px;border-top:1px solid var(--line);font-weight:700;font-size:13.5px}
+.gtot b{font-family:var(--font-num);font-weight:600}
+.empty{color:var(--muted);font-size:14px;margin:0;text-align:center;padding:18px 8px;background:var(--soft);border-radius:12px}
+.status{font-size:13px;color:var(--muted);margin:0;min-height:1.3em}
+
+/* 샘플 */
+.samples{display:flex;flex-direction:column;gap:10px}
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media (max-width:560px){ .sgrid{grid-template-columns:1fr} }
+.sc{padding:0;flex-direction:column;align-items:stretch;gap:0;overflow:hidden;border-radius:14px;text-align:left;min-height:0}
+.sc img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;max-width:100%}
+.sc span{display:block;padding:8px 12px 2px;font-size:14px;font-weight:700}
+.sc small{display:block;padding:0 12px 10px;font-size:12.5px;font-weight:500;color:var(--muted)}
+.sc[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+@media (max-width:560px){ .sc{flex-direction:row;align-items:center;justify-content:flex-start} .sc img{width:120px;flex:none} .sc .tx{min-width:0;flex:1} }
+details.help{font-size:13.5px;color:var(--muted)}
+details.help summary{cursor:pointer;color:var(--ink);font-weight:600;min-height:36px;display:flex;align-items:center}
+details.help ul{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:5px}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <span class="logo"><img src="brand/poscoenc-logo.png" alt="포스코이앤씨" width="86" height="34"></span>
+    <div class="brand">
+      <h1>현장 포토 물량</h1>
+      <div class="meta"><span>포스코이앤씨 건축BIM섹션</span><span aria-hidden="true">·</span><span class="ver">ver 0.9</span></div>
+    </div>
+  </header>
+
+  <nav class="views" role="tablist" aria-label="화면">
+    <button role="tab" id="v-ar" aria-selected="false">AR 실측<small>Android 앱</small></button>
+    <button role="tab" id="v-photo" aria-selected="true">사진 물량<small>개수·면적·토공·길이</small></button>
+    <button role="tab" id="v-report" aria-selected="false">산출 내역<small>검토·저장·CSV</small></button>
+  </nav>
+
+  <!-- AR 실측 -->
+  <section id="view-ar" class="view" hidden>
+    <div class="card ar">
+      <span class="badge-st">Android 앱으로 개발 중 · 이 웹 화면에서는 동작하지 않습니다</span>
+      <h2>AR 실측: 기준 치수 없이 실시간 거리·면적</h2>
+      <p>휴대폰 카메라로 주변을 인식한 뒤 시작점과 끝점을 찍으면 실제 거리가 바로 나옵니다. 기준 치수를 넣지 않아도 됩니다. ARCore의 깊이(Depth) 기능을 쓰므로 설치형 Android 앱에서만 동작하며, 웹 페이지에서는 카메라와 AR 기능을 쓸 수 없습니다.</p>
+      <ol class="steps">
+        <li><b>주변 인식</b>카메라를 천천히 좌우로 움직여 바닥·벽을 인식시킵니다.</li>
+        <li><b>점 지정</b>화면 가운데 조준점을 시작점·끝점에 맞추고 누릅니다. 모서리·직선 스냅이 보조합니다.</li>
+        <li><b>결과 저장</b>거리·면적과 사진, 측정점, 산출 근거를 휴대폰에 저장하고 CSV로 내보냅니다.</li>
+      </ol>
+      <dl class="kv">
+        <dt>권장 거리</dt><dd>대상까지 약 0.5~5 m (Google 안내 기준 깊이 정확도가 가장 좋은 범위)</dd>
+        <dt>대상 기기</dt><dd>ARCore Depth API 지원 Android 기기</dd>
+        <dt>1차 개발 범위</dt><dd>2점 거리 측정 · 사진 저장 · 강재 개수 검토</dd>
+        <dt>검증 방법</dt><dd>같은 구간을 줄자와 비교해 기기별 오차를 기록</dd>
+      </dl>
+      <p>지금 이 화면에서는 ‘사진 물량’에서 기준 치수(기준 길이 또는 바닥 4점)를 잡아 거리를 잴 수 있습니다.</p>
+      <div class="row"><a class="btn" href="https://developers.google.com/ar/devices" target="_blank" rel="noopener">ARCore 지원 기기 목록</a><button id="goPhotoLen" class="primary">사진으로 거리 재기</button></div>
+    </div>
+  </section>
+
+  <!-- 사진 물량 -->
+  <div id="view-photo" class="view">
+  <!-- ① 사진 -->
+  <section class="card photo" aria-label="사진">
+    <div id="empty" class="drop">
+      <svg class="big" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>
+      <p class="drop-t">현장 사진을 찍거나 불러오세요</p>
+      <p class="drop-s">휴대폰에서는 ‘카메라로 촬영’을 누르면 바로 카메라가 열립니다.</p>
+      <div class="drop-b">
+        <label class="btn primary"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>카메라로 촬영<input id="shoot" type="file" accept="image/*" capture="environment" hidden></label>
+        <label class="btn">앨범에서 선택<input id="pick" type="file" accept="image/*" hidden></label>
+      </div>
+    </div>
+    <div id="stageWrap" hidden>
+      <div class="stage">
+        <canvas id="cv" width="1280" height="720" aria-label="측정 사진"></canvas>
+        <canvas id="loupe" width="248" height="248" hidden></canvas>
+        <div id="total" class="total" hidden><span class="dot" id="totalDot"></span><span class="n" id="totalN"></span><span class="l" id="totalL"></span></div>
+        <span id="sampleTag" class="tag"></span>
+        <div class="stbar" role="toolbar" aria-label="편집">
+          <button id="undoBtn" class="sbtn" aria-label="되돌리기" title="되돌리기 (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+          <button id="redoBtn" class="sbtn" aria-label="다시 실행" title="다시 실행 (Ctrl+Shift+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+          <button id="editBtn" class="sbtn" aria-label="수정" aria-pressed="false" title="수정: 점·상자를 끌어 고치기"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg><span>수정</span></button>
+        </div>
+      </div>
+      <div class="pbar">
+        <button id="scaleBtn" class="scale warn">기준 치수 없음</button>
+        <span class="grow"></span>
+        <label class="btn primary"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>촬영<input id="shoot2" type="file" accept="image/*" capture="environment" hidden></label>
+        <label class="btn">앨범<input id="pick2" type="file" accept="image/*" hidden></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- ② 기능 -->
+  <nav class="fn" role="tablist" aria-label="측정 기능">
+    <button role="tab" id="fn-count" aria-selected="true">개수<small>범위 자동 세기</small></button>
+    <button role="tab" id="fn-area" aria-selected="false">면적·부피<small>면 · 다각형</small></button>
+    <button role="tab" id="fn-earth" aria-selected="false">토공<small>터파기 구역</small></button>
+    <button role="tab" id="fn-length" aria-selected="false">길이<small>두 점 거리</small></button>
+  </nav>
+
+  <section class="card tool" aria-label="도구">
+    <p id="hint" class="hint" role="status"></p>
+
+    <div id="t-count" class="tgrp">
+      <div class="seg" role="group" aria-label="개수 작업">
+        <button id="cnt-auto" aria-pressed="true">범위 자동</button>
+        <button id="cnt-ex" aria-pressed="false">비슷한 것</button>
+        <button id="cnt-edit" aria-pressed="false">추가 · 제외</button>
+      </div>
+      <label id="whatRow" class="what" for="cntWhat"><span>세는 대상</span><input id="cntWhat" type="text" placeholder="비우면 AI가 판단 (예: 워터 배리어, 철근 D22)"></label>
+      <div id="labels" class="labels" role="group" aria-label="라벨"></div>
+      <label id="thrRow" class="slider" for="thr" hidden>유사도<input id="thr" type="range" min="40" max="95" value="65"><span id="thrV" class="val">0.65</span></label>
+    </div>
+
+    <div id="t-area" class="tgrp" hidden>
+      <div class="seg" role="group" aria-label="면적 방식">
+        <button id="ar-auto" aria-pressed="true">자동 면 (한 번 누르기)</button>
+        <button id="ar-poly" aria-pressed="false">다각형 (꼭지점 찍기)</button>
+      </div>
+      <label id="ctx-auto" class="slider" for="tol">인식 범위<input id="tol" type="range" min="8" max="80" value="30"><span id="tolV" class="val">30</span></label>
+    </div>
+
+    <div id="t-earth" class="tgrp" hidden>
+      <div class="seg" role="group" aria-label="토공 방식">
+        <button id="ea-plan" aria-pressed="true">평면 구역 (깊이 · 법면)</button>
+        <button id="ea-sec" aria-pressed="false">단면 × 연장</button>
+      </div>
+    </div>
+
+    <div id="t-length" class="tgrp" hidden>
+      <div class="chips" role="group" aria-label="길이 옵션">
+        <button class="chip" id="chainBtn" aria-pressed="false">연속 측정 (끝점에서 이어 재기)</button>
+      </div>
+    </div>
+
+    <div id="t-scale" class="tgrp" hidden>
+      <div class="seg" role="group" aria-label="기준 치수 방식">
+        <button id="cal-len" aria-pressed="true">기준 길이 · 정면 사진</button>
+        <button id="cal-plane" aria-pressed="false">바닥 4점 · 비스듬한 사진</button>
+      </div>
+      <div id="formLen" class="form" hidden>
+        <label>실제 길이 (mm)<input id="refMm" type="number" inputmode="numeric" min="1"></label>
+        <div class="chips" id="presetLen" style="flex:2 1 260px">
+          <button class="chip" data-mm="1000">스타프 1000</button><button class="chip" data-mm="1200">유로폼 1200</button><button class="chip" data-mm="600">유로폼 600</button><button class="chip" data-mm="10000">줄자 10 m</button>
+        </div>
+        <button id="applyLen" class="primary" style="flex:1 1 100%">기준 치수 적용</button>
+      </div>
+      <div id="formPlane" class="form" hidden>
+        <label>가로 1→2 (m)<input id="plW" type="number" inputmode="decimal" min="0" step="0.01"></label>
+        <label>세로 2→3 (m)<input id="plH" type="number" inputmode="decimal" min="0" step="0.01"></label>
+        <div class="chips" id="presetPlane" style="flex:1 1 100%">
+          <button class="chip" data-w="10" data-h="10">측량 핀 10×10</button><button class="chip" data-w="20" data-h="10">측량 핀 20×10</button><button class="chip" data-w="6.096" data-h="1.524">철판 6.1×1.5</button><button class="chip" data-w="2" data-h="1">복공판 2.0×1.0</button>
+        </div>
+        <button id="applyPlane" class="primary" style="flex:1 1 100%">바닥 평면 보정 적용</button>
+      </div>
+      <button id="calDone">기준 치수 닫기</button>
+    </div>
+
+    <div id="t-edit" class="tgrp" hidden>
+      <p id="editInfo" class="einfo">선택된 것이 없습니다.</p>
+      <div class="row">
+        <button id="editDel" disabled>선택 삭제</button>
+        <button id="editDone" class="primary">수정 끝내기</button>
+      </div>
+    </div>
+    <div id="ctx-busy" class="row" hidden>
+      <button id="aiCancel">AI 세기 취소</button>
+    </div>
+    <div id="ctx-cancel" class="row" hidden>
+      <button id="cancelDraw">그리던 것 취소 (Esc)</button>
+    </div>
+    <div id="ctx-draw" class="row" hidden>
+      <button id="undoPt">점 취소</button>
+      <button id="cancelPoly">그리기 취소</button>
+      <button id="closePoly" class="primary">닫고 확정</button>
+    </div>
+    <div id="ctx-snap" class="chips" role="group" aria-label="스냅" hidden>
+      <span class="lbl">스냅</span>
+      <button class="chip" id="sn-v" aria-pressed="true">꼭지점</button>
+      <button class="chip" id="sn-e" aria-pressed="true">끝선</button>
+      <button class="chip" id="sn-r" aria-pressed="true">90°</button>
+      <button class="chip" id="sn-hv" aria-pressed="true">수평·수직</button>
+    </div>
+  </section>
+
+  <!-- ③ 집계 -->
+  <section class="card results" aria-label="집계">
+    <div class="rhead">
+      <h2>집계</h2>
+      <div class="acts">
+        <button id="aiBtn" hidden>AI 부재 판별</button>
+        <button id="toReport">산출 내역 보기</button>
+      </div>
+    </div>
+    <dl id="summary" class="summary"></dl>
+    <div id="groups" class="tgrp"></div>
+    <p id="status" class="status" role="status"></p>
+  </section>
+
+  <section class="samples" aria-label="실제 현장 사진 샘플">
+    <h2>실제 현장 사진으로 해보기</h2>
+    <div class="sgrid">
+      <button class="card sc" id="sm-barrier"><img src="samples/thumb-site-barrier.jpg" alt="워터 배리어가 늘어선 터파기 현장"><div class="tx"><span>워터 배리어 개수</span><small>예시 3개 + 빠진 1개 추가</small></div></button>
+      <button class="card sc" id="sm-cone"><img src="samples/thumb-site-cone.jpg" alt="라바콘이 놓인 현장"><div class="tx"><span>라바콘 개수</span><small>잘못 잡은 3개 제외까지</small></div></button>
+      <button class="card sc" id="sm-earth"><img src="samples/thumb-site-earth.jpg" alt="법면이 있는 굴착 현장"><div class="tx"><span>굴착 구역 토공량</span><small>바닥 4점 보정 (가정 치수)</small></div></button>
+    </div>
+  </section>
+
+  </div>
+
+  <!-- 산출 내역 -->
+  <section id="view-report" class="view" hidden>
+    <div class="card results">
+      <div class="rhead">
+        <h2>산출 내역</h2>
+        <div class="acts">
+          <button id="csvBtn" hidden>CSV 저장</button>
+          <button id="imgBtn" hidden>근거 사진 저장</button>
+          <button id="copyBtn">표 복사</button>
+        </div>
+      </div>
+      <dl id="repSummary" class="summary"></dl>
+      <div id="repTable" class="rep"></div>
+      <div class="repimg" id="repImgWrap" hidden><img id="repImg" alt="측정 표시가 들어간 근거 사진"></div>
+      <p id="repStatus" class="status" role="status"></p>
+    </div>
+  </section>
+
+  <details class="help">
+    <summary>사용법과 정확도</summary>
+    <ul>
+      <li>잘못 찍었으면 사진 오른쪽 위 ↶(되돌리기)·↷(다시 실행)을 누르세요. 그리던 다각형·선·기준 치수는 ‘그리기 취소’나 Esc로 한 번에 지웁니다. ✎ 수정을 켜면 점·꼭지점·상자 모서리·번호를 끌어 옮기고, 눌러 선택해 지울 수 있습니다. 다각형 변의 가운데 점을 끌면 꼭지점이 늘어나고, AI 범위 모서리를 고치면 그 범위를 다시 셉니다.</li>
+      <li>거리: 첫 점을 찍은 뒤 손가락을 움직이면 확대경 옆에 실시간 길이가 표시됩니다. ‘연속 측정’을 켜면 끝점에서 다음 구간이 바로 이어집니다. 기준 치수 없이 실시간으로 재는 AR 실측은 Android 앱으로 개발 중입니다.</li>
+      <li>면적·부피 ‘자동 면’: 누른 곳에서 경계선(색이 바뀌는 선)까지 면 전체를 잡아 꼭지점 다각형으로 만듭니다. 이미 잡은 면과 겹치는 부분은 빼고 잡으며, 합계는 겹침을 한 번만 셉니다. 경계가 틀리면 ✎ 수정에서 꼭지점을 끌어 고치세요.</li>
+      <li>사진 위를 누른 채 움직이면 확대경이 뜨고, 손을 뗀 곳에 점이 찍힙니다. 스냅이 걸리면 꼭지점·끝선·90°·수평·수직이 표시됩니다.</li>
+      <li>개수 ‘범위 자동’: 셀 대상이 모인 범위를 상자로 감싸면 개별 대상을 하나씩 세어 번호를 붙입니다. AI 비전을 쓸 수 있으면 AI가, 없으면 기기가 직접(배경과 색이 다른 덩어리를 낱개 크기로 나눠) 셉니다. 겹치거나 붙어 있어도 따로 셉니다. 무엇을 셀지 적어 두면 더 정확합니다. 수백 개가 넘는 대상은 범위를 나눠 세세요.</li><li>개수 ‘비슷한 것’: 셀 대상 하나를 상자로 1~3개 감싸면 모양과 색이 닮은 것을 사진 전체에서 찾아 번호를 붙입니다. AI를 쓸 수 없는 화면에서도 됩니다. 가까운 것과 먼 것을 하나씩 예시로 주면 원근으로 크기가 달라도 잘 찾습니다. 화면에서 몇 px밖에 안 되는 먼 대상은 놓치기 쉬우니 가까이서 찍으세요.</li>
+      <li>기준 치수 ‘기준 길이’는 정면 사진용입니다. 측정면과 같은 면에 놓인 물체(스타프, 유로폼)를 기준으로 삼으세요.</li>
+      <li>기준 치수 ‘바닥 4점’은 비스듬히 찍은 바닥용입니다. 크기를 아는 바닥 직사각형의 네 모서리를 찍으면 원근을 펴서 잽니다. 기준은 잴 범위를 거의 덮을 만큼 커야 하며, 터파기는 측량 핀(말뚝) 4개로 10~20 m 사각형을 잡고 찍으세요. 결과 옆 ‘기준점 1px 오차 시 ±%’가 민감도입니다.</li>
+      <li>토공 평면: 각주공식 V = h/6 × (A상 + 4A중 + A바닥). 깊이를 쉼표로 여러 개 넣으면 평균을 씁니다. 단면: 단면적 × 연장.</li>
+      <li>흐트러진 토량 = 자연상태 × L, 다짐 = 자연상태 × C. 토질별 L·C는 표준품셈 범위의 대표값이니 현장 시험값으로 고쳐 쓰세요. 덤프 1대 적재량 q = 톤수 ÷ 단위중량 × L.</li>
+      <li>샘플의 ‘굴착 구역 토공량’은 실제 사진에 가정한 바닥 치수를 넣은 시연입니다. 수치는 실제 물량이 아닙니다.</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(id){ return document.getElementById(id); };
+var cv=$("cv"), ctx=cv.getContext("2d"), loupe=$("loupe"), lctx=loupe.getContext("2d");
+/* 라벨 색: 흙·회색 가설벽·하늘·주황 라바콘·파란 펜스와 겹치지 않게 */
+var COLORS=["#ff2d87","#00b8f0","#8b5cf6","#22c55e","#ffb800","#ff5a1f"];
+var MEMBERS=["벽","기둥","슬래브","보","기초","계단","거푸집","철근","조적","바닥","기타"];
+var SOILS={ "모래":{L:1.15,C:0.90,g:1.8}, "보통토사":{L:1.25,C:0.88,g:1.8}, "점질토":{L:1.30,C:0.95,g:1.7}, "풍화암":{L:1.35,C:1.10,g:2.0}, "연암":{L:1.50,C:1.20,g:2.3} };
+var SNAPMODES={ poly:1, earth:1, line:1, scale:1 };
+var S={ W:1280,H:720, photo:null, blur:null, fn:"count", mode:"count", prevMode:"count", areaSub:"auto", earthView:"plan", cal:null, calVer:0, calMode:"len", calDraft:[], lenDraft:null, pend:null, draft:[],
+        items:[], seq:0, view:"photo", grpOpen:{}, chain:false, chainColor:null, snapOn:{v:true,e:true,r:true,hv:true}, cntMode:"auto", active:null, levels:{} };
+var aim=null;
+
+/* =========================================================
+   사진 적재와 특징 (경계선 세기, 모서리)
+   ========================================================= */
+function setPhoto(src,w,h){
+  var k=Math.min(1,1280/Math.max(w,h)); S.W=Math.round(w*k); S.H=Math.round(h*k);
+  var c=document.createElement("canvas"); c.width=S.W; c.height=S.H; c.getContext("2d").drawImage(src,0,0,S.W,S.H);
+  S.photo=c; cv.width=S.W; cv.height=S.H; S.levels={};
+  var d=c.getContext("2d").getImageData(0,0,S.W,S.H).data, W=S.W, H=S.H, o=new Uint8ClampedArray(d.length);
+  for (var y=0;y<H;y++) for (var x=0;x<W;x++){ var r=0,gg=0,b=0,n=0;
+    for (var dy=-1;dy<=1;dy++){ var yy=y+dy; if(yy<0||yy>=H) continue;
+      for (var dx=-1;dx<=1;dx++){ var xx=x+dx; if(xx<0||xx>=W) continue; var q=(yy*W+xx)*4; r+=d[q]; gg+=d[q+1]; b+=d[q+2]; n++; } }
+    var i=(y*W+x)*4; o[i]=r/n; o[i+1]=gg/n; o[i+2]=b/n; }
+  S.blur=o; features();
+}
+function integral(src,W,H){ var W1=W+1, I=new Float64Array(W1*(H+1));
+  for (var y=0;y<H;y++){ var run=0; for (var x=0;x<W;x++){ run+=src[y*W+x]; I[(y+1)*W1+x+1]=I[y*W1+x+1]+run; } } return I; }
+function rsum(I,W1,x,y,w,h){ return I[(y+h)*W1+x+w]-I[y*W1+x+w]-I[(y+h)*W1+x]+I[y*W1+x]; }
+function features(){
+  var W=S.W,H=S.H,N=W*H,b=S.blur,g=new Float32Array(N);
+  for (var i=0;i<N;i++) g[i]=0.299*b[i*4]+0.587*b[i*4+1]+0.114*b[i*4+2];
+  var ix=new Float32Array(N), iy=new Float32Array(N), mag=new Float32Array(N);
+  for (var y=1;y<H-1;y++) for (var x=1;x<W-1;x++){ var k=y*W+x;
+    var gx=(g[k-W+1]+2*g[k+1]+g[k+W+1])-(g[k-W-1]+2*g[k-1]+g[k+W-1]);
+    var gy=(g[k+W-1]+2*g[k+W]+g[k+W+1])-(g[k-W-1]+2*g[k-W]+g[k-W+1]);
+    ix[k]=gx; iy[k]=gy; mag[k]=Math.sqrt(gx*gx+gy*gy); }
+  var smp=[]; for (var j=0;j<N;j+=7) smp.push(mag[j]); smp.sort(function(a,c){ return a-c; });
+  S.grad=mag; S.gthr=Math.max(60,smp[Math.floor(smp.length*0.92)]);
+  var xx=new Float32Array(N), yy2=new Float32Array(N), xy=new Float32Array(N);
+  for (var m=0;m<N;m++){ xx[m]=ix[m]*ix[m]; yy2[m]=iy[m]*iy[m]; xy[m]=ix[m]*iy[m]; }
+  var A=integral(xx,W,H), B=integral(yy2,W,H), C=integral(xy,W,H), W1=W+1, R=new Float32Array(N), maxR=0;
+  for (var y2=3;y2<H-3;y2++) for (var x2=3;x2<W-3;x2++){
+    var a=rsum(A,W1,x2-2,y2-2,5,5), bb=rsum(B,W1,x2-2,y2-2,5,5), cc=rsum(C,W1,x2-2,y2-2,5,5);
+    var r=a*bb-cc*cc-0.04*(a+bb)*(a+bb); R[y2*W+x2]=r; if(r>maxR) maxR=r; }
+  var thr=maxR*0.0002, cs=[];
+  for (var y3=4;y3<H-4;y3++) for (var x3=4;x3<W-4;x3++){ var v=R[y3*W+x3]; if(v<=thr) continue; var isMax=true;
+    for (var dy=-2;dy<=2&&isMax;dy++) for (var dx=-2;dx<=2;dx++){ if((dx||dy)&&R[(y3+dy)*W+x3+dx]>v){ isMax=false; break; } }
+    if(isMax) cs.push({x:x3,y:y3,r:v}); }
+  cs.sort(function(p,q){ return q.r-p.r; }); S.corners=cs.slice(0,900); S.cmax=maxR||1;
+}
+
+/* =========================================================
+   스케일: 기준 길이(균일 축척) 또는 바닥 4점(호모그래피)
+   ========================================================= */
+function solve(A,b){ var n=b.length;
+  for (var c=0;c<n;c++){ var p=c; for (var r=c+1;r<n;r++) if(Math.abs(A[r][c])>Math.abs(A[p][c])) p=r;
+    var t=A[c]; A[c]=A[p]; A[p]=t; var tb=b[c]; b[c]=b[p]; b[p]=tb; if(Math.abs(A[c][c])<1e-12) return null;
+    for (var r2=c+1;r2<n;r2++){ var f=A[r2][c]/A[c][c]; for (var k=c;k<n;k++) A[r2][k]-=f*A[c][k]; b[r2]-=f*b[c]; } }
+  var x=new Array(n); for (var i=n-1;i>=0;i--){ var s=b[i]; for (var j=i+1;j<n;j++) s-=A[i][j]*x[j]; x[i]=s/A[i][i]; } return x; }
+function homography(src,dst){ var A=[],b=[];
+  for (var i=0;i<4;i++){ var x=src[i].x,y=src[i].y,X=dst[i].x,Y=dst[i].y;
+    A.push([x,y,1,0,0,0,-X*x,-X*y]); b.push(X); A.push([0,0,0,x,y,1,-Y*x,-Y*y]); b.push(Y); }
+  var h=solve(A,b); return h?[h[0],h[1],h[2],h[3],h[4],h[5],h[6],h[7],1]:null; }
+function det3(m){ return m[0]*(m[4]*m[8]-m[5]*m[7])-m[1]*(m[3]*m[8]-m[5]*m[6])+m[2]*(m[3]*m[7]-m[4]*m[6]); }
+function inv3(m){ var a=m[0],b=m[1],c=m[2],d=m[3],e=m[4],f=m[5],g=m[6],h=m[7],i=m[8], D=det3(m);
+  return [(e*i-f*h)/D,-(b*i-c*h)/D,(b*f-c*e)/D,-(d*i-f*g)/D,(a*i-c*g)/D,-(a*f-c*d)/D,(d*h-e*g)/D,-(a*h-b*g)/D,(a*e-b*d)/D]; }
+function apply(m,p){ var w=m[6]*p.x+m[7]*p.y+m[8]; return { x:(m[0]*p.x+m[1]*p.y+m[2])/w, y:(m[3]*p.x+m[4]*p.y+m[5])/w }; }
+function toW(p){ var c=S.cal; return c.type==="len"?{x:p.x*c.s,y:p.y*c.s}:apply(c.H,p); }
+function fromW(q){ var c=S.cal; return c.type==="len"?{x:q.x/c.s,y:q.y/c.s}:apply(c.Hi,q); }
+function distW(a,b){ var p=toW(a), q=toW(b); return Math.hypot(p.x-q.x,p.y-q.y); }
+function setCal(c){ S.cal=c; S.calVer++; }
+function planeCal(p,w,h){ var H=homography(p,[{x:0,y:0},{x:w,y:0},{x:w,y:h},{x:0,y:h}]); if(!H) return null;
+  return { type:"plane", pts:p.slice(), w:w, h:h, H:H, Hi:inv3(H), det:det3(H) }; }
+
+/* 기준점을 1px씩 흔들어 다시 계산해 보고, 결과가 얼마나 흔들리는지(%)를 돌려준다 */
+function calSens(measure){
+  var c=S.cal; if(!c) return null; var base=measure(); if(!(base>0)) return null;
+  var pats=c.type==="plane"?[[[1,-1],[-1,1],[1,1],[-1,-1]],[[-1,1],[1,-1],[-1,-1],[1,1]],[[1,1],[1,1],[-1,-1],[-1,-1]],[[-1,-1],[-1,-1],[1,1],[1,1]]]:[[[0,0],[1,1]],[[0,0],[-1,-1]]];
+  var worst=0;
+  pats.forEach(function(pt){ var q=c.pts.map(function(a,i){ return {x:a.x+pt[i][0],y:a.y+pt[i][1]}; }), t;
+    if(c.type==="plane") t=planeCal(q,c.w,c.h); else { var L=Math.hypot(q[0].x-q[1].x,q[0].y-q[1].y); t={type:"len",pts:q,mm:c.mm,s:(c.mm/1000)/L}; }
+    if(!t) return; S.cal=t; var v=measure(); S.cal=c; if(isFinite(v)) worst=Math.max(worst,Math.abs(v/base-1)); });
+  S.cal=c; return worst*100;
+}
+function sensNote(pct){ if(pct==null) return ""; var t="기준점 1px 오차 시 ±"+(pct<1?pct.toFixed(1):Math.round(pct))+"%";
+  return pct>10?'<p class="warnline">'+t+' — 기준 직사각형이 재는 범위보다 작습니다. 범위를 거의 덮는 큰 직사각형(측량 핀 4개 등)으로 다시 잡으세요.</p>':'<span class="sens">'+t+'</span>'; }
+
+/* =========================================================
+   스냅
+   ========================================================= */
+function tolPx(){ var w=cv.getBoundingClientRect().width||S.W; return 18*S.W/w; }
+function userPts(){ var a=[];
+  if(S.cal) a=a.concat(S.cal.pts);
+  S.items.forEach(function(it){ if(it.type==="line") a.push(it.a,it.b); else if(it.type==="poly") a=a.concat(it.pts); });
+  return a.concat(S.draft,S.calDraft); }
+function gAt(x,y){ x=Math.round(x); y=Math.round(y); return (x<1||y<1||x>=S.W-1||y>=S.H-1)?0:S.grad[y*S.W+x]; }
+function edgeNear(p,r){ r=r*0.6; var best=null,bs=0,r2=r*r;
+  for (var dy=-Math.ceil(r);dy<=r;dy++) for (var dx=-Math.ceil(r);dx<=r;dx++){ var d2=dx*dx+dy*dy; if(d2>r2) continue;
+    var v=gAt(p.x+dx,p.y+dy); if(v<S.gthr) continue; var sc=v*(1-0.8*Math.sqrt(d2)/r); if(sc>bs){ bs=sc; best={x:Math.round(p.x+dx),y:Math.round(p.y+dy)}; } }
+  return best; }
+function edgeAlong(q,ux,uy,r){ var best=null,bs=0;
+  for (var t=-r;t<=r;t+=0.5){ var x=q.x+ux*t,y=q.y+uy*t,v=gAt(x,y); if(v<S.gthr) continue; var sc=v*(1-0.6*Math.abs(t)/r); if(sc>bs){ bs=sc; best={x:x,y:y}; } }
+  return best; }
+function angWrap(d){ return d-Math.PI*Math.round(d/Math.PI); }
+function lastDir(a){ var n=a.length; return n>1?Math.atan2(a[n-1].y-a[n-2].y,a[n-1].x-a[n-2].x):null; }
+function snapCtx(){
+  if(S.mode==="poly"||S.mode==="earth") return { anchor:S.draft[S.draft.length-1]||null, dir:lastDir(S.draft) };
+  if(S.mode==="scale"&&S.calMode==="plane") return { anchor:S.calDraft[S.calDraft.length-1]||null, dir:lastDir(S.calDraft) };
+  if(S.mode==="line"){ var last=null; S.items.forEach(function(it){ if(it.type==="line") last=it; });
+    return { anchor:S.pend, dir:last?Math.atan2(last.b.y-last.a.y,last.b.x-last.a.x):null }; }
+  return { anchor:S.pend, dir:null };
+}
+function snap(p){
+  var c=snapCtx(), r=tolPx(), rv=r*0.6, best=null, bd=rv;
+  if(S.snapOn.v){
+    var own=S.mode==="scale"?S.calDraft:[];
+    userPts().forEach(function(q){ if(q===c.anchor||own.indexOf(q)>=0) return; var d=Math.hypot(q.x-p.x,q.y-p.y); if(d<bd){ bd=d; best=q; } });
+    if(!best){ var bs=0; S.corners.forEach(function(k){ var d=Math.hypot(k.x-p.x,k.y-p.y); if(d>=rv) return;
+      var sc=Math.pow(k.r/S.cmax,0.25)*(1-d/rv); if(sc>bs){ bs=sc; best=k; } }); }
+    if(best) return { p:{x:best.x,y:best.y}, label:"꼭지점", kind:"v", target:best };
+  }
+  if(c.anchor){
+    var ang=Math.atan2(p.y-c.anchor.y,p.x-c.anchor.x), cands=[], pick=null, lim=7*Math.PI/180;
+    if(S.snapOn.hv) cands.push({a:0,l:"수평"},{a:Math.PI/2,l:"수직"});
+    if(S.snapOn.r&&c.dir!=null) cands.push({a:c.dir+Math.PI/2,l:"90°"});
+    cands.forEach(function(k){ var d=Math.abs(angWrap(ang-k.a)); if(d<lim){ lim=d; pick=k; } });
+    if(pick&&Math.hypot(p.x-c.anchor.x,p.y-c.anchor.y)>r*0.6){
+      var ux=Math.cos(pick.a), uy=Math.sin(pick.a), t=(p.x-c.anchor.x)*ux+(p.y-c.anchor.y)*uy, q={x:c.anchor.x+ux*t,y:c.anchor.y+uy*t}, lbl=pick.l;
+      if(S.snapOn.e){ var e=edgeAlong(q,ux,uy,r); if(e){ q=e; lbl+=" · 끝선"; } }
+      return { p:q, label:lbl, kind:"a", ray:{x:c.anchor.x,y:c.anchor.y,ux:ux,uy:uy} };
+    }
+  }
+  if(S.snapOn.e){ var e2=edgeNear(p,r); if(e2) return { p:e2, label:"끝선", kind:"e" }; }
+  return { p:p };
+}
+
+/* =========================================================
+   자동 면
+   ========================================================= */
+function grow(sx,sy,tol,occ){
+  var W=S.W,H=S.H,d=S.blur,N=W*H;
+  sx=Math.max(0,Math.min(W-1,Math.round(sx))); sy=Math.max(0,Math.min(H-1,Math.round(sy)));
+  var r0=0,g0=0,b0=0,n=0;
+  for (var dy=-2;dy<=2;dy++) for (var dx=-2;dx<=2;dx++){ var x=sx+dx,y=sy+dy; if(x<0||y<0||x>=W||y>=H) continue; var q=(y*W+x)*4; r0+=d[q]; g0+=d[q+1]; b0+=d[q+2]; n++; }
+  r0/=n; g0/=n; b0/=n;
+  var t2=tol*tol, mask=new Uint8Array(N), st=new Int32Array(N), sp=0, s0=sy*W+sx; mask[s0]=1; st[sp++]=s0;
+  var x0=sx,x1=sx,y0=sy,y1=sy;
+  /* 색이 비슷하고(완화된 허용치) 경계선(밝기 급변)을 넘지 않으며, 이미 잡은 면이 아닌 화소만 */
+  /* 이웃 화소끼리의 색 차이(그늘·조명 변화 허용) + 누른 곳과의 큰 차이 상한 + 경계선 차단 + 이미 잡은 면 제외 */
+  var tl=Math.pow(tol*0.35,2), cap=Math.pow(tol*4,2), eT=S.gthr*(0.7+tol/50), G=S.grad;
+  function ok(i,j){ if(occ&&occ[i]) return false; if(G[i]>=eT) return false; var q=i*4,p=j*4;
+    var a=d[q]-d[p],b=d[q+1]-d[p+1],c=d[q+2]-d[p+2]; if(a*a+b*b+c*c>tl) return false;
+    a=d[q]-r0; b=d[q+1]-g0; c=d[q+2]-b0; return a*a+b*b+c*c<=cap; }
+  while(sp){ var i=st[--sp], px=i%W, py=(i-px)/W;
+    if(px<x0)x0=px; if(px>x1)x1=px; if(py<y0)y0=py; if(py>y1)y1=py;
+    if(px>0&&!mask[i-1]&&ok(i-1,i)){ mask[i-1]=1; st[sp++]=i-1; }
+    if(px<W-1&&!mask[i+1]&&ok(i+1,i)){ mask[i+1]=1; st[sp++]=i+1; }
+    if(py>0&&!mask[i-W]&&ok(i-W,i)){ mask[i-W]=1; st[sp++]=i-W; }
+    if(py<H-1&&!mask[i+W]&&ok(i+W,i)){ mask[i+W]=1; st[sp++]=i+W; } }
+  function erode(m){ var o=new Uint8Array(N); for (var y=y0;y<=y1;y++) for (var x=x0;x<=x1;x++){ var i=y*W+x;
+    if(m[i]&&x>0&&x<W-1&&y>0&&y<H-1&&m[i-1]&&m[i+1]&&m[i-W]&&m[i+W]&&m[i-W-1]&&m[i-W+1]&&m[i+W-1]&&m[i+W+1]) o[i]=1; } return o; }
+  var er=erode(erode(mask));
+  if(er[s0]){
+    var core=new Uint8Array(N); sp=0; core[s0]=1; st[sp++]=s0;
+    while(sp){ var e=st[--sp], ex=e%W;
+      if(ex>0&&er[e-1]&&!core[e-1]){ core[e-1]=1; st[sp++]=e-1; } if(ex<W-1&&er[e+1]&&!core[e+1]){ core[e+1]=1; st[sp++]=e+1; }
+      if(e>=W&&er[e-W]&&!core[e-W]){ core[e-W]=1; st[sp++]=e-W; } if(e<N-W&&er[e+W]&&!core[e+W]){ core[e+W]=1; st[sp++]=e+W; } }
+    for (var pass=0;pass<2;pass++){ var nx=new Uint8Array(core);
+      for (var y2=y0;y2<=y1;y2++) for (var x2=x0;x2<=x1;x2++){ var i2=y2*W+x2; if(core[i2]||!mask[i2]) continue;
+        if((x2>0&&core[i2-1])||(x2<W-1&&core[i2+1])||(y2>0&&core[i2-W])||(y2<H-1&&core[i2+W])||(x2>0&&y2>0&&core[i2-W-1])||(x2<W-1&&y2>0&&core[i2-W+1])||(x2>0&&y2<H-1&&core[i2+W-1])||(x2<W-1&&y2<H-1&&core[i2+W+1])) nx[i2]=1; }
+      core=nx; }
+    mask=core; var a0=x0,a1=x1,b0=y0,b1=y1; x0=W; x1=0; y0=H; y1=0;
+    for (var y3=b0;y3<=b1;y3++) for (var x3=a0;x3<=a1;x3++) if(mask[y3*W+x3]){ if(x3<x0)x0=x3; if(x3>x1)x1=x3; if(y3<y0)y0=y3; if(y3>y1)y1=y3; }
+  }
+  /* 경계선 띠 복원: 경계 판정 때문에 빠진 가장자리 1~2화소를, 안쪽 이웃과 색이 비슷하면 다시 넣는다 */
+  for (var pass2=0;pass2<3;pass2++){ var add=[];
+    for (var y4=Math.max(1,y0-1);y4<=Math.min(H-2,y1+1);y4++) for (var x4=Math.max(1,x0-1);x4<=Math.min(W-2,x1+1);x4++){ var i4=y4*W+x4; if(mask[i4]||(occ&&occ[i4])) continue;
+      var nb=mask[i4-1]?i4-1:mask[i4+1]?i4+1:mask[i4-W]?i4-W:mask[i4+W]?i4+W:-1; if(nb<0) continue;
+      var q4=i4*4, p4=nb*4, a4=d[q4]-d[p4], b4=d[q4+1]-d[p4+1], c4=d[q4+2]-d[p4+2]; if(a4*a4+b4*b4+c4*c4<=tl*4) add.push(i4); }
+    add.forEach(function(i){ mask[i]=1; var xx=i%W, yy=(i-xx)/W; if(xx<x0)x0=xx; if(xx>x1)x1=xx; if(yy<y0)y0=yy; if(yy>y1)y1=yy; }); }
+  var area=0; for (var k=0;k<N;k++) area+=mask[k];
+  var bw=x1-x0+3,bh=y1-y0+3,lab=new Uint8Array(bw*bh),q2=new Int32Array(bw*bh);
+  function at(lx,ly){ var gx=lx+x0-1,gy=ly+y0-1; return (gx<0||gy<0||gx>=W||gy>=H)?0:mask[gy*W+gx]; }
+  function flood(start,mark){ var cnt=0,h=0; q2[h++]=start; lab[start]=mark;
+    while(h){ var c=q2[--h]; cnt++; var lx=c%bw,ly=(c-lx)/bw;
+      if(lx>0&&!lab[c-1]&&!at(lx-1,ly)){ lab[c-1]=mark; q2[h++]=c-1; } if(lx<bw-1&&!lab[c+1]&&!at(lx+1,ly)){ lab[c+1]=mark; q2[h++]=c+1; }
+      if(ly>0&&!lab[c-bw]&&!at(lx,ly-1)){ lab[c-bw]=mark; q2[h++]=c-bw; } if(ly<bh-1&&!lab[c+bw]&&!at(lx,ly+1)){ lab[c+bw]=mark; q2[h++]=c+bw; } }
+    return cnt; }
+  flood(0,1);
+  var lim=Math.max(30,area*0.02), holes=0, holeList=[];
+  for (var ly=1;ly<bh-1;ly++) for (var lx=1;lx<bw-1;lx++){ var c=ly*bw+lx; if(lab[c]||at(lx,ly)) continue;
+    var cnt=flood(c,2), fill=cnt<lim;
+    var hp=fill?null:[];
+    for (var j=0;j<bw*bh;j++) if(lab[j]===2){ lab[j]=fill?3:4; var jx=j%bw, jy=(j-jx)/bw, gi=(jy+y0-1)*W+(jx+x0-1); if(fill) mask[gi]=1; else hp.push(gi); }
+    if(fill) area+=cnt; else { holes+=cnt; if(!(occ&&hp.some(function(i){ return occ[i]; }))) holeList.push(hp); } }
+  var per=0,cx=0,cy=0;
+  for (var yy=y0;yy<=y1;yy++) for (var xx=x0;xx<=x1;xx++){ var m=yy*W+xx; if(!mask[m]) continue; cx+=xx; cy+=yy;
+    if(xx===0||!mask[m-1]) per++; if(xx===W-1||!mask[m+1]) per++; if(yy===0||!mask[m-W]) per++; if(yy===H-1||!mask[m+W]) per++; }
+  return { mask:mask, holes:holes, holeList:holeList, area:area, per:per, bb:[x0,y0,x1,y1], cx:cx/area, cy:cy/area };
+}
+/* ---------- 화소 영역 → 꼭지점 다각형 (경계 추적 + 단순화) ---------- */
+function traceB(at,sx,sy){
+  var dx=[1,1,0,-1,-1,-1,0,1], dy=[0,-1,-1,-1,0,1,1,1], out=[[sx,sy]], x=sx, y=sy, d=7, first=null, n=0;
+  while(n++<400000){
+    var st=(d%2===0)?(d+7)%8:(d+6)%8, moved=false;
+    for (var k=0;k<8;k++){ var nd=(st+k)%8, nx=x+dx[nd], ny=y+dy[nd]; if(at(nx,ny)){ x=nx; y=ny; d=nd; moved=true; break; } }
+    if(!moved) break;
+    if(first===null) first=d;
+    else if(x===sx&&y===sy){ var s2=(d%2===0)?(d+7)%8:(d+6)%8, nd2=-1; for (var k2=0;k2<8;k2++){ var t=(s2+k2)%8; if(at(sx+dx[t],sy+dy[t])){ nd2=t; break; } } if(nd2===first) break; }
+    out.push([x,y]); }
+  if(out.length>1&&out[out.length-1][0]===sx&&out[out.length-1][1]===sy) out.pop();
+  return out; }
+function rdp(pts,eps){ if(pts.length<3) return pts.slice();
+  var a=pts[0], b=pts[pts.length-1], idx=-1, md=0, dx=b[0]-a[0], dy=b[1]-a[1], L=Math.hypot(dx,dy);
+  for (var i=1;i<pts.length-1;i++){ var q=pts[i], dd=L<1e-6?Math.hypot(q[0]-a[0],q[1]-a[1]):Math.abs(dy*q[0]-dx*q[1]+b[0]*a[1]-b[1]*a[0])/L; if(dd>md){ md=dd; idx=i; } }
+  if(md>eps){ var l=rdp(pts.slice(0,idx+1),eps), r=rdp(pts.slice(idx),eps); return l.slice(0,-1).concat(r); }
+  return [a,b]; }
+function simplifyRing(pts,eps,maxN){
+  if(pts.length<4) return pts.map(function(q){ return {x:q[0],y:q[1]}; });
+  var far=0, fi=0; for (var i=1;i<pts.length;i++){ var dd=Math.hypot(pts[i][0]-pts[0][0],pts[i][1]-pts[0][1]); if(dd>far){ far=dd; fi=i; } }
+  var out;
+  for (var tries=0;tries<12;tries++){ var A=rdp(pts.slice(0,fi+1),eps), B=rdp(pts.slice(fi).concat([pts[0]]),eps); out=A.slice(0,-1).concat(B.slice(0,-1)); if(out.length<=maxN) break; eps*=1.4; }
+  return out.map(function(q){ return {x:q[0]+.5,y:q[1]+.5}; }); }
+function ringFromPixels(test,sx,sy,grow){ var c=traceB(test,sx,sy); var r=simplifyRing(c,2.5,60); if(r.length<3) return null; return offsetPoly(r,grow); }
+function faceToPoly(r){
+  var W=S.W, H=S.H, m=r.mask, at=function(x,y){ return x>=0&&y>=0&&x<W&&y<H&&m[y*W+x]===1; };
+  var sx=-1, sy=-1; for (var y=r.bb[1];y<=r.bb[3]&&sx<0;y++) for (var x=r.bb[0];x<=r.bb[2];x++) if(m[y*W+x]){ sx=x; sy=y; break; }
+  /* 흐림 때문에 경계 화소 1개가 빠지므로 바깥 경계는 1.5화소, 개구부는 0.5화소 보정 */
+  var outer=ringFromPixels(at,sx,sy,-1.5); if(!outer) return null;
+  var holes=[]; r.holeList.forEach(function(hp){ if(hp.length<25) return; var set=new Uint8Array(W*H), mn=Infinity; hp.forEach(function(i){ set[i]=1; if(i<mn) mn=i; });
+    var hat=function(x,y){ return x>=0&&y>=0&&x<W&&y<H&&set[y*W+x]===1; }; var hr=ringFromPixels(hat,mn%W,Math.floor(mn/W),0.5); if(hr) holes.push(hr); });
+  return { pts:outer, holes:holes };
+}
+/* 이미 잡은 면적 항목들을 화소 지도로 (겹침 방지용) */
+var occCv=null;
+function rasterAreas(exclude,scale){
+  var W=Math.round(S.W*(scale||1)), H=Math.round(S.H*(scale||1)), k=scale||1;
+  if(!occCv) occCv=document.createElement("canvas"); occCv.width=W; occCv.height=H;
+  var g=occCv.getContext("2d"); g.clearRect(0,0,W,H); g.fillStyle="#fff";
+  var list=S.items.filter(function(it){ return it!==exclude&&kindOf(it)==="area"&&it.type==="poly"; });
+  list.forEach(function(it){ g.beginPath(); ringPath(g,it.pts,k); (it.holes||[]).forEach(function(h){ ringPath(g,h,k); }); g.fill("evenodd"); });
+  var d=g.getImageData(0,0,W,H).data, m=new Uint8Array(W*H); for (var i=0;i<W*H;i++) m[i]=d[i*4+3]>127?1:0; return m; }
+function ringPath(g,pts,k){ pts.forEach(function(q,i){ i?g.lineTo(q.x*k,q.y*k):g.moveTo(q.x*k,q.y*k); }); g.closePath(); }
+function faceAt(p){ var hit=null; S.items.forEach(function(it){ if(it.type==="poly"&&it.kind==="area"&&inPoly(p,it.pts)&&!(it.holes||[]).some(function(h){ return inPoly(p,h); })) hit=it; }); return hit; }
+function addFace(x,y,tol,keep){
+  var occ=rasterAreas(keep||null,1), W=S.W, sx=Math.round(x), sy=Math.round(y);
+  if(occ[sy*W+sx]){ return { already:faceAt({x:x,y:y}) }; }
+  var r=grow(x,y,tol,occ);
+  if(r.area<60) return { small:true };
+  var poly=faceToPoly(r); if(!poly) return { small:true };
+  var it=keep||{ id:++S.seq, type:"poly", kind:"area", auto:true, member:"벽", thick:200, color:nextColor() };
+  it.pts=poly.pts; it.holes=poly.holes; it.seed={x:x,y:y}; it.tol=tol; it.edited=false;
+  if(!keep) S.items.push(it);
+  return { it:it, big:r.area>S.W*S.H*0.35 };
+}
+function nextColor(){ return COLORS[S.items.length%COLORS.length]; }
+function addRegion(x,y,tol,keep){
+  var r=grow(x,y,tol);
+  if(r.area<40){ hint("잡힌 면이 너무 작습니다. 인식 범위를 높이거나 다른 곳을 눌러 보세요."); return null; }
+  var it=keep||{ id:++S.seq, type:"region", member:"벽", thick:200, color:nextColor() };
+  it.seed={x:x,y:y}; it.tol=tol; it.mask=r.mask; it.holes=r.holes; it.px=r.area; it.per=r.per; it.bb=r.bb; it.cx=r.cx; it.cy=r.cy; it._v=-1;
+  it.ov=overlay(r.mask,it.color); if(!keep) S.items.push(it);
+  return it;
+}
+/* 면적: 균일 축척이면 화소수×s², 바닥 평면이면 화소마다 |det H|/w³ 를 더한다 */
+function regionQ(it){
+  if(!S.cal) return {};
+  if(it._v===S.calVer) return it._q;
+  var c=S.cal, q;
+  if(c.type==="len"){ var s=c.s; q={ area:it.px*s*s, w:(it.bb[2]-it.bb[0]+1)*s, h:(it.bb[3]-it.bb[1]+1)*s, per:it.per*s, open:it.holes*s*s }; }
+  else { var m=c.H, det=Math.abs(c.det), A=0, W=S.W, bb=it.bb;
+    for (var y=bb[1];y<=bb[3];y++) for (var x=bb[0];x<=bb[2];x++){ if(!it.mask[y*W+x]) continue; var w=m[6]*(x+.5)+m[7]*(y+.5)+m[8]; A+=det/Math.abs(w*w*w); }
+    q={ area:A, plane:true }; }
+  it._v=S.calVer; it._q=q; return q;
+}
+
+/* =========================================================
+   다각형과 토공량
+   ========================================================= */
+function sArea(p){ var a=0,n=p.length; for (var i=0;i<n;i++){ var q=p[i],r=p[(i+1)%n]; a+=q.x*r.y-r.x*q.y; } return a/2; }
+function perim(p){ var s=0,n=p.length; for (var i=0;i<n;i++){ var q=p[i],r=p[(i+1)%n]; s+=Math.hypot(r.x-q.x,r.y-q.y); } return s; }
+function centroid(p){ var x=0,y=0; p.forEach(function(q){ x+=q.x; y+=q.y; }); return {x:x/p.length,y:y/p.length}; }
+function turns(p){ var n=p.length,t=[],T=0;
+  for (var i=0;i<n;i++){ var a=p[(i-1+n)%n],b=p[i],c=p[(i+1)%n],e1x=b.x-a.x,e1y=b.y-a.y,e2x=c.x-b.x,e2y=c.y-b.y;
+    var v=Math.atan2(e1x*e2y-e1y*e2x,e1x*e2x+e1y*e2y); t.push(v); T+=v; }
+  var f=T<0?-1:1; return { t:t.map(function(v){ return v*f; }), f:f }; }
+function cotK(p){ var K=0; turns(p).t.forEach(function(t){ var h=Math.min(Math.PI-0.05,Math.max(0.05,(Math.PI-t)/2)); K+=Math.cos(h)/Math.sin(h); }); return K; }
+function offsetPoly(p,d){ var f=turns(p).f,n=p.length,nm=[],out=[];
+  for (var i=0;i<n;i++){ var a=p[i],b=p[(i+1)%n],dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1; nm.push({x:-dy/L*f,y:dx/L*f}); }
+  for (var j=0;j<n;j++){ var n1=nm[(j-1+n)%n],n2=nm[j],k=Math.max(0.1,1+n1.x*n2.x+n1.y*n2.y); out.push({x:p[j].x+d*(n1.x+n2.x)/k,y:p[j].y+d*(n1.y+n2.y)/k}); }
+  return out; }
+function polyQ(it){ if(!S.cal) return {}; var w=it.pts.map(toW), xs=w.map(function(p){ return p.x; }), ys=w.map(function(p){ return p.y; });
+  var open=0; (it.holes||[]).forEach(function(h){ open+=Math.abs(sArea(h.map(toW))); });
+  return { area:Math.max(0,Math.abs(sArea(w))-open), open:open, per:perim(w), w:Math.max.apply(0,xs)-Math.min.apply(0,xs), h:Math.max.apply(0,ys)-Math.min.apply(0,ys), plane:S.cal.type==="plane" }; }
+/* 면적 항목끼리 겹친 부분: 반 해상도 화소 지도로 앞 항목과의 겹침 면적을 구한다 (합계는 한 번만) */
+var ovCache={key:"",map:{}};
+function overlaps(){
+  if(!S.cal) return {};
+  var items=S.items.filter(function(it){ return kindOf(it)==="area"&&it.type==="poly"; });
+  var key=S.calVer+"|"+S.W+"|"+items.map(function(it){ return it.id+":"+JSON.stringify(it.pts)+JSON.stringify(it.holes||[]); }).join("/");
+  if(ovCache.key===key) return ovCache.map;
+  var k=0.5, W=Math.round(S.W*k), H=Math.round(S.H*k), U=new Uint8Array(W*H), out={}, c=S.cal;
+  var wt=function(x,y){ if(c.type==="len") return c.s*c.s/(k*k); var m=c.H, X=(x+.5)/k, Y=(y+.5)/k, w=m[6]*X+m[7]*Y+m[8]; return Math.abs(c.det)/Math.abs(w*w*w)/(k*k); };
+  var cv2=document.createElement("canvas"); cv2.width=W; cv2.height=H; var g=cv2.getContext("2d");
+  items.forEach(function(it){ g.clearRect(0,0,W,H); g.fillStyle="#fff"; g.beginPath(); ringPath(g,it.pts,k); (it.holes||[]).forEach(function(h){ ringPath(g,h,k); }); g.fill("evenodd");
+    var d=g.getImageData(0,0,W,H).data, ov=0; for (var i=0;i<W*H;i++){ if(d[i*4+3]<128) continue; if(U[i]) ov+=wt(i%W,Math.floor(i/W)); else U[i]=1; }
+    out[it.id]=ov; });
+  ovCache={key:key,map:out}; return out; }
+function depths(it){ return String(it.depths).split(/[,\s\/]+/).map(parseFloat).filter(function(v){ return v>0; }); }
+function earthCalc(it){
+  if(!S.cal) return null;
+  var w=it.pts.map(toW), A=Math.abs(sArea(w)), P=perim(w), o={A:A,P:P,w:w};
+  if(it.view==="section"){ o.len=+it.len||0; o.V=A*o.len; }
+  else { var ds=depths(it), h=ds.length?ds.reduce(function(a,b){ return a+b; },0)/ds.length:0, K=cotK(w), x=(+it.slope||0)*h, sg=it.edge==="top"?-1:1;
+    var fA=function(t){ return A+sg*P*t+K*t*t; }, Am=fA(x/2), A2=fA(x);
+    o.collapse=Am<=0||A2<=0; o.h=h; o.n=ds.length; o.off=x; o.A2=Math.max(0,A2); o.V=h/6*(A+4*Math.max(0,Am)+o.A2); }
+  var soil=SOILS[it.soil]||SOILS["보통토사"], L=+it.L||1, C=+it.C||1;
+  o.loose=o.V*L; o.comp=o.V*C; o.q=(+it.truck||15)/soil.g*L; o.trucks=o.V>0?Math.ceil(o.loose/o.q-1e-9):0;
+  return o;
+}
+
+/* =========================================================
+   개수: 예시 상자 + 정규화 상관(NCC), 크기 3단계
+   ========================================================= */
+function level(s){
+  var key=s.toFixed(3); if(S.levels[key]) return S.levels[key];
+  var W=Math.max(8,Math.round(S.W*s)),H=Math.max(8,Math.round(S.H*s)),c=document.createElement("canvas"); c.width=W; c.height=H;
+  var g=c.getContext("2d"); g.imageSmoothingQuality="high"; g.drawImage(S.photo,0,0,W,H);
+  var d=g.getImageData(0,0,W,H).data,N=W*H,ch=[new Float32Array(N),new Float32Array(N),new Float32Array(N)],sq=new Float32Array(N);
+  for (var i=0;i<N;i++){ var r=d[i*4],gg=d[i*4+1],b=d[i*4+2]; ch[0][i]=r; ch[1][i]=gg; ch[2][i]=b; sq[i]=r*r+gg*gg+b*b; }
+  return (S.levels[key]={W:W,H:H,s:s,ch:ch,I:ch.map(function(a){ return integral(a,W,H); }),I2:integral(sq,W,H)});
+}
+/* RGB 세 채널을 함께 쓰는 정규화 상관: 모양과 색이 모두 닮아야 높은 점수 */
+function nccMap(ex,k){
+  var s=Math.round(Math.min(1,Math.max(0.15,16/Math.min(ex.w,ex.h)))*40)/40, T0=level(s), W0=T0.W+1;
+  var tw=Math.max(4,Math.round(ex.w*s)), th=Math.max(4,Math.round(ex.h*s));
+  var tx=Math.min(T0.W-tw,Math.max(0,Math.round(ex.x*s))), ty=Math.min(T0.H-th,Math.max(0,Math.round(ex.y*s))), n=tw*th;
+  var T=[], m=[], sT2=0;
+  for (var c=0;c<3;c++){ var mc=rsum(T0.I[c],W0,tx,ty,tw,th)/n, a=new Float32Array(n); m.push(mc);
+    for (var j=0;j<th;j++) for (var i=0;i<tw;i++){ var v=T0.ch[c][(ty+j)*T0.W+tx+i]-mc; a[j*tw+i]=v; sT2+=v*v; } T.push(a); }
+  var sk=Math.min(1.6,s*k), Lv=level(sk), W=Lv.W, W1=W+1, MW=W-tw+1, MH=Lv.H-th+1, out={ s:sk, tw:tw, th:th, r:Math.min(ex.w,ex.h)/2*s/sk, MW:MW, MH:MH };
+  out.M=new Float32Array(Math.max(1,MW*MH)).fill(-1);
+  var sdT=Math.sqrt(sT2/n); if(sdT<2||MW<1||MH<1) return out;
+  var M=out.M, R=Lv.ch[0], G=Lv.ch[1], B=Lv.ch[2], TR=T[0], TG=T[1], TB=T[2], ct=50*50;
+  for (var y=0;y<MH;y++) for (var x=0;x<MW;x++){
+    var sR=rsum(Lv.I[0],W1,x,y,tw,th), sG=rsum(Lv.I[1],W1,x,y,tw,th), sB=rsum(Lv.I[2],W1,x,y,tw,th);
+    var dr=sR/n-m[0], dg=sG/n-m[1], db=sB/n-m[2]; if(dr*dr+dg*dg+db*db>ct) continue;
+    var v2=rsum(Lv.I2,W1,x,y,tw,th)-(sR*sR+sG*sG+sB*sB)/n; if(v2<=0) continue;
+    var ratio=Math.sqrt(v2/n)/sdT; if(ratio<0.5||ratio>2) continue;
+    var acc=0; for (var jj=0;jj<th;jj++){ var row=(y+jj)*W+x, tr=jj*tw; for (var ii=0;ii<tw;ii++){ var q=row+ii, t=tr+ii; acc+=R[q]*TR[t]+G[q]*TG[t]+B[q]*TB[t]; } }
+    M[y*MW+x]=acc/Math.sqrt(v2*sT2); }
+  return out;
+}
+function peaks(gr){
+  var cand=[];
+  gr.examples.forEach(function(ex){
+    if(!ex.maps) ex.maps=[0.8,1,1.25].map(function(k){ return nccMap(ex,k); });
+    ex.maps.forEach(function(m){ var M=m.M,MW=m.MW,MH=m.MH;
+      for (var y=1;y<MH-1;y++) for (var x=1;x<MW-1;x++){ var v=M[y*MW+x]; if(v<gr.thr) continue;
+        if(v<M[y*MW+x-1]||v<M[y*MW+x+1]||v<M[(y-1)*MW+x]||v<M[(y+1)*MW+x]||v<M[(y-1)*MW+x-1]||v<M[(y+1)*MW+x+1]||v<M[(y-1)*MW+x+1]||v<M[(y+1)*MW+x-1]) continue;
+        cand.push({ x:(x+m.tw/2)/m.s, y:(y+m.th/2)/m.s, v:v, r:m.r }); } });
+  });
+  cand.sort(function(a,b){ return b.v-a.v; });
+  var keep=[];
+  for (var i=0;i<cand.length&&keep.length<3000;i++){ var c=cand[i], ok=true;
+    for (var k=0;k<keep.length;k++){ var q=keep[k]; if(Math.hypot(q.x-c.x,q.y-c.y)<1.2*Math.min(q.r,c.r)){ ok=false; break; } }
+    if(ok) keep.push(c); }
+  gr.simHits=keep; rebuildHits(gr);
+}
+function rebuildHits(gr){
+  var all=(gr.simHits||[]).slice(); (gr.regions||[]).forEach(function(r){ if(!r.failed&&!r.canceled) all=all.concat(r.pts); });
+  gr.hits=all.filter(function(h){ return !gr.removes.some(function(q){ return Math.hypot(q.x-h.x,q.y-h.y)<Math.max(h.r,4); }); });
+}
+function countPts(gr){ return gr.hits.concat(gr.adds); }
+function activeGroup(create){
+  var g=S.items.filter(function(it){ return it.id===S.active&&it.type==="count"; })[0];
+  if(!g&&create){ var n=S.items.filter(function(it){ return it.type==="count"; }).length+1;
+    g={ id:++S.seq, type:"count", name:"개수 "+n, color:nextColor(), examples:[], regions:[], simHits:[], hits:[], adds:[], removes:[], thr:+$("thr").value/100 };
+    S.items.push(g); S.active=g.id; }
+  return g||null;
+}
+function addExample(gr,box){ if(gr.examples.length>=5) gr.examples.shift(); gr.examples.push(box); peaks(gr); }
+
+
+/* =========================================================
+   그리기 — 라벨 색 + 흰 테두리 (번호 붙은 원형 표시)
+   ========================================================= */
+function lum(hex){ var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return (0.299*r+0.587*g+0.114*b)/255; }
+function overlay(mask,hex){
+  var W=S.W,H=S.H,c=document.createElement("canvas"); c.width=W; c.height=H;
+  var g=c.getContext("2d"), im=g.createImageData(W,H), d=im.data, r=parseInt(hex.slice(1,3),16), gg=parseInt(hex.slice(3,5),16), b=parseInt(hex.slice(5,7),16);
+  for (var i=0;i<W*H;i++){ if(!mask[i]) continue; var x=i%W, y=(i-x)/W;
+    var e1=x===0||y===0||x===W-1||y===H-1||!mask[i-1]||!mask[i+1]||!mask[i-W]||!mask[i+W];
+    var e2=!e1&&((x>1&&!mask[i-2])||(x<W-2&&!mask[i+2])||(y>1&&!mask[i-2*W])||(y<H-2&&!mask[i+2*W]));
+    var q=i*4; if(e1){ d[q]=255; d[q+1]=255; d[q+2]=255; d[q+3]=255; } else { d[q]=r; d[q+1]=gg; d[q+2]=b; d[q+3]=e2?255:90; } }
+  g.putImageData(im,0,0); return c;
+}
+function U(){ var w=cv.getBoundingClientRect().width||S.W; return Math.max(1,S.W/w); }
+function render(){
+  if(!S.photo) return; numberItems();
+  var u=U();
+  ctx.clearRect(0,0,S.W,S.H); ctx.drawImage(S.photo,0,0);
+  S.items.forEach(function(it){ if(it.type==="region") ctx.drawImage(it.ov,0,0); });
+  ctx.lineCap="round"; ctx.lineJoin="round"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  function path(p,close){ ctx.beginPath(); p.forEach(function(q,i){ i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y); }); if(close) ctx.closePath(); }
+  function stroke2(c,w,dash){ ctx.setLineDash(dash||[]); ctx.strokeStyle="rgba(255,255,255,.95)"; ctx.lineWidth=(w+3)*u; ctx.stroke(); ctx.strokeStyle=c; ctx.lineWidth=w*u; ctx.stroke(); ctx.setLineDash([]); }
+  function dot(x,y,c,r){ r=(r||4)*u; ctx.beginPath(); ctx.arc(x,y,r+2*u,0,7); ctx.fillStyle="#fff"; ctx.fill(); ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fillStyle=c; ctx.fill(); }
+  function pill(x,y,t,c){ ctx.font="700 "+(12.5*u)+"px 'Noto Sans KR', sans-serif"; var w=ctx.measureText(t).width+14*u, h=22*u, rr=11*u;
+    x=Math.min(Math.max(x,w/2+3),S.W-w/2-3); y=Math.min(Math.max(y,h/2+3),S.H-h/2-3);
+    ctx.save(); ctx.shadowColor="rgba(0,0,0,.28)"; ctx.shadowBlur=6*u; ctx.shadowOffsetY=1.5*u;
+    ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(x-w/2,y-h/2,w,h,rr); else ctx.rect(x-w/2,y-h/2,w,h); ctx.fillStyle=c; ctx.fill(); ctx.restore();
+    ctx.fillStyle=lum(c)>0.62?"#0f172a":"#ffffff"; ctx.fillText(t,x,y+0.5*u); }
+  function marker(x,y,c,n,rr){ ctx.save(); ctx.shadowColor="rgba(0,0,0,.35)"; ctx.shadowBlur=4*u; ctx.shadowOffsetY=1*u;
+    ctx.beginPath(); ctx.arc(x,y,rr+1.8*u,0,7); ctx.fillStyle="#fff"; ctx.fill(); ctx.restore();
+    ctx.beginPath(); ctx.arc(x,y,rr,0,7); ctx.fillStyle=c; ctx.fill();
+    if(n){ ctx.font="700 "+Math.min(11.5*u,rr*1.05)+"px 'IBM Plex Mono', monospace"; ctx.fillStyle=lum(c)>0.62?"#0f172a":"#ffffff"; ctx.fillText(n,x,y+0.6*u); } }
+  /* 기준 치수 */
+  if(S.cal&&S.cal.type==="len"){ path(S.cal.pts); stroke2("#0f172a",2,[6*u,5*u]); S.cal.pts.forEach(function(q){ dot(q.x,q.y,"#0f172a"); });
+    pill((S.cal.pts[0].x+S.cal.pts[1].x)/2,(S.cal.pts[0].y+S.cal.pts[1].y)/2-18*u,"기준 "+S.cal.mm.toLocaleString()+"mm","#0f172a"); }
+  if(S.cal&&S.cal.type==="plane"){ path(S.cal.pts,true); ctx.fillStyle="rgba(255,255,255,.18)"; ctx.fill(); stroke2("#0f172a",2,[6*u,5*u]);
+    S.cal.pts.forEach(function(q){ dot(q.x,q.y,"#0f172a"); }); var c0=centroid(S.cal.pts); pill(c0.x,c0.y,(S.cal.assumed?"가정 ":"바닥 기준 ")+S.cal.w+"×"+S.cal.h+"m","#0f172a"); }
+  S.items.forEach(function(it){ var no=String(it.no);
+    if(it.type==="region") pill(it.cx,it.cy,no,it.color);
+    else if(it.type==="poly"){
+      ctx.beginPath(); ringPath(ctx,it.pts,1); (it.holes||[]).forEach(function(h){ ringPath(ctx,h,1); }); ctx.fillStyle=it.color+"4d"; ctx.fill("evenodd");
+      path(it.pts,true); stroke2(it.color,2.5); (it.holes||[]).forEach(function(h){ path(h,true); stroke2(it.color,2,[5*u,4*u]); });
+      if(it.kind==="earth"&&it.view!=="section"&&S.cal){ var e=earthCalc(it); if(e&&e.off>0&&!e.collapse){
+        path(offsetPoly(e.w,(it.edge==="top"?1:-1)*e.off).map(fromW),true); stroke2(it.color,2,[6*u,5*u]); } }
+      it.pts.forEach(function(q){ dot(q.x,q.y,it.color,it.auto&&it.pts.length>16?2:3); });
+      var c2=it.seed&&it.auto?it.seed:centroid(it.pts); pill(c2.x,c2.y,(it.kind==="earth"?"토공 ":"")+no,it.color);
+    }
+    else if(it.type==="line"){ path([it.a,it.b]); stroke2(it.color,3); dot(it.a.x,it.a.y,it.color); dot(it.b.x,it.b.y,it.color);
+      var len=S.cal?distW(it.a,it.b):null; pill((it.a.x+it.b.x)/2,(it.a.y+it.b.y)/2-18*u,len!=null?len.toFixed(2)+" m":"길이 "+no,it.color); }
+    else if(it.type==="count"){
+      var act=it.id===S.active;
+      it.examples.forEach(function(ex){ ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(ex.x,ex.y,ex.w,ex.h,4*u); else ctx.rect(ex.x,ex.y,ex.w,ex.h); stroke2(it.color,2,[5*u,4*u]); });
+      (it.regions||[]).forEach(function(r){ if(r.failed||r.canceled) return; ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(r.x,r.y,r.w,r.h,8*u); else ctx.rect(r.x,r.y,r.w,r.h);
+        if(r.busy){ ctx.fillStyle="rgba(47,98,245,.12)"; ctx.fill(); }
+        stroke2(it.color,2,[8*u,6*u]); var rn=r.pts.filter(function(h){ return !it.removes.some(function(q){ return Math.hypot(q.x-h.x,q.y-h.y)<Math.max(h.r,4); }); }).length; pill(r.x+r.w/2,r.y,r.busy?"AI가 세는 중…":(rn+"개 · AI"),it.color); });
+      var pts=countPts(it), many=pts.length>250;
+      pts.forEach(function(q,k){ var rr=Math.max(7*u,Math.min((q.r||6)*0.75,13*u)); if(many) rr=4*u;
+        marker(q.x,q.y,it.color,many?"":String(k+1),rr); });
+    }
+  });
+  var sp=aim&&aim.snap?aim.snap.p:null, live=sp&&SNAPMODES[S.mode]&&!S.editing;
+  if(S.draft.length){ var col=S.mode==="earth"?"#ff9f1c":"#2f62f5";
+    path(live?S.draft.concat([sp]):S.draft); stroke2(col,2.5);
+    S.draft.forEach(function(q,i){ dot(q.x,q.y,col,i===0&&S.draft.length>=3?6:4); }); }
+  if(S.calDraft.length){ path(live&&S.calMode==="plane"&&S.calDraft.length<4?S.calDraft.concat([sp]):S.calDraft,S.calDraft.length===4); stroke2("#0f172a",2,[6*u,5*u]);
+    S.calDraft.forEach(function(q,i){ dot(q.x,q.y,"#0f172a"); if(S.calMode==="plane") pill(q.x+16*u,q.y-16*u,String(i+1),"#0f172a"); }); }
+  if(S.editing){
+    handles().forEach(function(h){ if(h.k==="cp") return; var isSel=selH&&selH.k===h.k&&selH.it===h.it&&selH.i===h.i&&selH.j===h.j&&selH.hi===h.hi;
+      ctx.beginPath(); if(h.k==="pm"||h.k==="hm"){ ctx.arc(h.x,h.y,4*u,0,7); ctx.fillStyle="rgba(255,255,255,.85)"; ctx.fill(); ctx.lineWidth=1.5*u; ctx.strokeStyle="#2f62f5"; ctx.stroke(); return; }
+      var r=(isSel?8:6)*u; ctx.rect(h.x-r,h.y-r,2*r,2*r); ctx.fillStyle=isSel?"#2f62f5":"#ffffff"; ctx.fill(); ctx.lineWidth=2*u; ctx.strokeStyle=isSel?"#ffffff":"#2f62f5"; ctx.stroke(); });
+    if(selH&&selH.k==="cp"){ ctx.beginPath(); ctx.arc(selH.q.x,selH.q.y,16*u,0,7); stroke2("#2f62f5",2.5); }
+    if(selH&&selH.k==="item"){ var si=selH.it;
+      if(si.type==="poly"){ path(si.pts,true); stroke2("#2f62f5",4,[8*u,5*u]); }
+      else if(si.type==="line"){ path([si.a,si.b]); stroke2("#2f62f5",5,[8*u,5*u]); }
+      else if(si.type==="region"){ ctx.beginPath(); ctx.arc(si.cx,si.cy,22*u,0,7); stroke2("#2f62f5",3,[6*u,4*u]); } }
+    if((selH&&(selH.k==="exbox"||selH.k==="rgbox"))){ var bb=(selH.k==="exbox"?selH.it.examples:selH.it.regions)[selH.i]; if(bb){ ctx.beginPath(); ctx.rect(bb.x,bb.y,bb.w,bb.h); stroke2("#2f62f5",4,[8*u,5*u]); } }
+    if(drag&&drag.to){ ctx.beginPath(); ctx.arc(drag.to.x,drag.to.y,10*u,0,7); stroke2("#2f62f5",3,[4*u,3*u]); }
+  }
+  if(S.pend){ dot(S.pend.x,S.pend.y,S.mode==="scale"?"#0f172a":"#2f62f5"); if(live){ path([S.pend,sp]); stroke2("#2f62f5",2,[6*u,5*u]);
+    if(S.mode==="line"&&S.cal){ var dl=distW(S.pend,sp); pill((S.pend.x+sp.x)/2,(S.pend.y+sp.y)/2-18*u,dl.toFixed(2)+" m","#2f62f5"); } } }
+  if(aim&&aim.box){ var b=aim.box; ctx.beginPath(); ctx.rect(b.x,b.y,b.w,b.h); stroke2("#2f62f5",2,[5*u,4*u]); }
+  if(aim&&aim.snap){ var sn=aim.snap, p=sn.p;
+    if(sn.ray){ ctx.beginPath(); ctx.moveTo(sn.ray.x-sn.ray.ux*4000,sn.ray.y-sn.ray.uy*4000); ctx.lineTo(sn.ray.x+sn.ray.ux*4000,sn.ray.y+sn.ray.uy*4000);
+      ctx.setLineDash([4*u,5*u]); ctx.strokeStyle="rgba(47,98,245,.9)"; ctx.lineWidth=1.5*u; ctx.stroke(); ctx.setLineDash([]); }
+    if(sn.kind==="v"){ ctx.beginPath(); ctx.rect(p.x-7*u,p.y-7*u,14*u,14*u); stroke2("#2f62f5",2); }
+    else if(sn.kind){ ctx.beginPath(); ctx.moveTo(p.x,p.y-8*u); ctx.lineTo(p.x+8*u,p.y); ctx.lineTo(p.x,p.y+8*u); ctx.lineTo(p.x-8*u,p.y); ctx.closePath(); stroke2("#2f62f5",2); }
+    ctx.beginPath(); ctx.moveTo(p.x-16*u,p.y); ctx.lineTo(p.x-4*u,p.y); ctx.moveTo(p.x+4*u,p.y); ctx.lineTo(p.x+16*u,p.y);
+    ctx.moveTo(p.x,p.y-16*u); ctx.lineTo(p.x,p.y-4*u); ctx.moveTo(p.x,p.y+4*u); ctx.lineTo(p.x,p.y+16*u); stroke2("#0f172a",1.2);
+    if(sn.label) pill(p.x+34*u,p.y-26*u,sn.label,"#2f62f5");
+  }
+}
+function drawLoupe(p,clientX,rect){
+  var R=20*U(); loupe.hidden=false;
+  var left=clientX-rect.left<rect.width/2; loupe.style.left=left?"":"10px"; loupe.style.right=left?"10px":"";
+  lctx.fillStyle="#000"; lctx.fillRect(0,0,248,248); lctx.imageSmoothingEnabled=false;
+  lctx.drawImage(cv,p.x-R,p.y-R,2*R,2*R,0,0,248,248);
+  lctx.strokeStyle="rgba(255,255,255,.9)"; lctx.lineWidth=1.5; lctx.beginPath(); lctx.moveTo(124,104); lctx.lineTo(124,144); lctx.moveTo(104,124); lctx.lineTo(144,124); lctx.stroke();
+}
+
+/* =========================================================
+   집계 — 기능별 묶음, 묶음마다 소계, 맨 위에 요약
+   ========================================================= */
+function f(v,d){ return v==null||!isFinite(v)?"–":v.toLocaleString("ko-KR",{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+function inp(it,k,type,extra){ return '<input id="f-'+k+'-'+it.id+'" data-id="'+it.id+'" data-k="'+k+'" type="'+type+'" value="'+esc(it[k])+'" '+(extra||'')+'>'; }
+function sel(it,k,opts){ return '<select id="f-'+k+'-'+it.id+'" data-id="'+it.id+'" data-k="'+k+'">'+opts.map(function(o){ return '<option value="'+esc(o[0])+'"'+(String(o[0])===String(it[k])?' selected':'')+'>'+esc(o[1])+'</option>'; }).join("")+'</select>'; }
+function fld(t,c){ return '<label class="fld"><span>'+t+'</span>'+c+'</label>'; }
+function noCol(it){ return '<span class="no" style="background:'+it.color+';color:'+(lum(it.color)>0.62?"#0f172a":"#fff")+'">'+it.no+'</span>'; }
+function kindOf(it){ return it.type==="count"?"count":it.type==="line"?"length":(it.type==="poly"&&it.kind==="earth")?"earth":"area"; }
+function numberItems(){ var n={count:0,area:0,earth:0,length:0}; S.items.forEach(function(it){ it.no=++n[kindOf(it)]; }); }
+function list(){
+  numberItems(); var OV=overlaps();
+  var G={count:[],area:[],earth:[],length:[]}, T={N:0,A:0,V:0,E:0,EL:0,D:0,L:0}, has={};
+  S.items.forEach(function(it){
+    var k=kindOf(it), main="", val="", extra="", sub="", acts='<button data-del="'+it.id+'">삭제</button>', cls="item";
+    if(k==="count"){
+      var n=countPts(it).length; if(it.id===S.active) cls+=" active"; T.N+=n; has.N=1;
+      main=inp(it,"name","text",'aria-label="라벨 이름"'); val=n+" 개";
+      var parts=[]; if((it.regions||[]).length) parts.push("범위 "+it.regions.length+(it.regions.every(function(r){ return r.local; })?" (기기)":" (AI)")); if(it.examples.length) parts.push("예시 "+it.examples.length+" · 유사도 "+it.thr.toFixed(2));
+      if(it.adds.length) parts.push("추가 "+it.adds.length); if(it.removes.length) parts.push("제외 "+it.removes.length); sub=parts.join(" · ");
+      acts='<button data-act="'+it.id+'">이 라벨로 세기</button>'+acts;
+    } else if(k==="area"){
+      var q=it.type==="region"?regionQ(it):polyQ(it), vol=q.area!=null?q.area*(+it.thick||0)/1000:null;
+      main=sel(it,"member",MEMBERS.map(function(m){ return [m,m]; }))+'<label class="thick">두께'+inp(it,"thick","number",'inputmode="numeric" min="0"')+'mm</label>';
+      val=f(q.area,2)+" m²<small>"+f(vol,3)+" m³</small>";
+      sub=(it.type==="region"?"자동 면":it.auto?(it.edited?"자동 면 (수정함)":"자동 면"):"다각형")+(q.area!=null?" · "+(q.plane?"바닥 보정":"가로 "+f(q.w,2)+" × 세로 "+f(q.h,2)+" m")+(q.open?" · 개구부 공제 "+f(q.open,2)+" m²":""):" · 기준 치수를 잡으면 계산됩니다");
+      if(it.note) sub+=" · "+esc(it.note);
+      if(it.type==="poly"&&q.area!=null){ var sp=sensNote(calSens(function(){ return polyQ(it).area; })); if(sp.indexOf("warnline")>0) extra+=sp; else sub+=" · "+sp.replace(/<[^>]+>/g,""); }
+      var ovl=q.area!=null&&OV[it.id]>Math.max(0.005*q.area,1e-6)?Math.min(OV[it.id],q.area):0;
+      if(ovl) extra+='<p class="warnline">앞 항목과 '+f(ovl,2)+' m² 겹칩니다. 합계에는 한 번만 넣었습니다.</p>';
+      if(q.area!=null){ T.A+=q.area-ovl; T.V+=(q.area-ovl)*(+it.thick||0)/1000; has.A=1; }
+    } else if(k==="earth"){
+      var e=earthCalc(it);
+      main=sel(it,"view",[["plan","평면 구역"],["section","단면 × 연장"]]);
+      val=(e?f(e.V,1):"–")+" m³<small>운반 "+(e?f(e.loose,1):"–")+" m³</small>";
+      var summ=(it.view==="section"?"연장 "+it.len+" m":"깊이 "+(e&&e.h?f(e.h,2):it.depths)+" m · 1:"+it.slope)+" · "+it.soil+" · "+it.truck+"톤";
+      extra='<details class="cond" data-open="'+it.id+'"'+(it._open?' open':'')+'><summary>조건: '+esc(summ)+'</summary><div class="fields">'+
+        (it.view==="section"
+          ? fld("연장 (m)",inp(it,"len","number",'inputmode="decimal" min="0" step="0.1"'))
+          : fld("깊이 m (여러 점 쉼표)",inp(it,"depths","text",'inputmode="decimal"'))+fld("법면 1 : n",inp(it,"slope","number",'inputmode="decimal" min="0" step="0.1"'))+
+            fld("그린 경계",sel(it,"edge",[["top","윗선"],["bottom","바닥선"]])))+
+        fld("토질",sel(it,"soil",Object.keys(SOILS).map(function(s){ return [s,s]; })))+
+        fld("L 흐트러짐",inp(it,"L","number",'inputmode="decimal" step="0.01"'))+fld("C 다짐",inp(it,"C","number",'inputmode="decimal" step="0.01"'))+
+        fld("덤프",sel(it,"truck",[["15","15톤"],["24","24톤"]]))+'</div></details>';
+      if(e){
+        extra+='<div class="res">'+(it.view==="section"
+          ? '<div><span>단면적</span><b>'+f(e.A,2)+' m²</b></div>'
+          : '<div><span>'+(it.edge==="top"?"상부":"바닥")+' 면적</span><b>'+f(e.A,1)+' m²</b></div><div><span>'+(it.edge==="top"?"바닥":"상부")+' 면적</span><b>'+f(e.A2,1)+' m²</b></div>')+
+          '<div><span>다짐</span><b>'+f(e.comp,1)+' m³</b></div><div><span>덤프 '+it.truck+'톤</span><b>'+e.trucks+' 대</b></div></div>';
+        if(e.collapse) extra+='<p class="warnline">법면이 바닥에서 만납니다. 깊이·경사·그린 경계를 확인하세요.</p>';
+        var se=sensNote(calSens(function(){ return earthCalc(it).V; })); if(se.indexOf("warnline")>0) extra+=se; else sub=se.replace(/<[^>]+>/g,"");
+        T.E+=e.V; T.EL+=e.loose; T.D+=e.trucks; has.E=1;
+      } else extra+='<p class="warnline">기준 치수를 잡으면 토공량이 계산됩니다.</p>';
+      if(S.cal&&S.cal.assumed) sub=(sub?sub+" · ":"")+"가정 치수 시연값";
+    } else {
+      var len=S.cal?distW(it.a,it.b):null;
+      main=inp(it,"name","text",'aria-label="항목 이름"'); val=f(len,2)+" m"; if(len!=null){ T.L+=len; has.L=1; }
+    }
+    G[k].push('<div class="'+cls+'">'+noCol(it)+'<div class="main">'+main+'</div><div class="q">'+val+'</div>'+extra+'<div class="sub"><span>'+sub+'</span><span class="acts">'+acts+'</span></div></div>');
+  });
+  var OVTOT=0; Object.keys(OV).forEach(function(k){ OVTOT+=OV[k]; });
+  var NAMES={count:"개수",area:"면적·부피",earth:"토공",length:"길이"}, TOT={
+    count:has.N?T.N+" 개":"", area:has.A?f(T.A,2)+" m² · "+f(T.V,3)+" m³":"", earth:has.E?f(T.E,1)+" m³ · 덤프 "+T.D+"대":"", length:has.L?f(T.L,2)+" m":"" };
+  var html=""; ["count","area","earth","length"].forEach(function(k){ if(!G[k].length) return;
+    var open=(k in S.grpOpen)?S.grpOpen[k]:k===S.fn;
+    html+='<details class="grp" data-g="'+k+'"'+(open?' open':'')+'><summary class="ghead">'+NAMES[k]+'<span>'+G[k].length+'개 항목</span><b>'+(TOT[k]||"")+'</b><span class="chev" aria-hidden="true">›</span></summary>'+G[k].join("")+(TOT[k]?'<div class="gtot"><span>'+NAMES[k]+' 합계'+(k==="area"&&OVTOT>0?' (겹침 제외)':'')+'</span><b>'+TOT[k]+'</b></div>':'')+'</details>'; });
+  $("groups").innerHTML=html||'<p class="empty">사진 위에서 세거나 그리면 기능별로 여기에 모입니다.</p>';
+  var sm=[];
+  if(has.N) sm.push(["개수",T.N+" 개",S.items.filter(function(i){ return i.type==="count"; }).length+"개 라벨"]);
+  if(has.A) sm.push(["면적",f(T.A,2)+" m²",T.V>0?"부피 "+f(T.V,3)+" m³":""]);
+  if(has.E) sm.push(["토공 자연상태",f(T.E,1)+" m³","운반 "+f(T.EL,1)+" m³ · 덤프 "+T.D+"대"]);
+  if(has.L) sm.push(["길이",f(T.L,2)+" m",""]);
+  $("summary").innerHTML=sm.map(function(s){ return '<div class="sum"><dt>'+s[0]+'</dt><dd>'+s[1]+(s[2]?'<small>'+s[2]+'</small>':'')+'</dd></div>'; }).join("");
+  $("summary").hidden=!sm.length;
+  /* 기준 치수 버튼 */
+  var b=$("scaleBtn");
+  if(!S.cal){ b.textContent="기준 치수 없음 · 잡기"; b.className="scale warn"; }
+  else if(S.cal.type==="len"){ b.textContent="기준 길이 · 1px="+(S.cal.s*1000).toFixed(1)+"mm"; b.className="scale ok"; }
+  else { b.textContent=(S.cal.assumed?"가정 ":"")+"바닥 4점 · "+S.cal.w+"×"+S.cal.h+"m"; b.className="scale ok"; }
+  if(!S.editing){ $("ctx-cancel").hidden=!(S.pend||(S.calDraft.length&&S.mode==="scale")); $("ctx-busy").hidden=!busyRegions().length; }
+  undoBtns();
+  $("undoPt").disabled=!S.draft.length; $("closePoly").disabled=S.draft.length<3;
+  $("closePoly").textContent=S.draft.length?"닫고 확정 ("+S.draft.length+"점)":"닫고 확정";
+  labels(); totalBadge(T,has); if(S.view==="report") report(sm);
+}
+function labels(){
+  var gs=S.items.filter(function(i){ return i.type==="count"; });
+  $("labels").innerHTML=gs.map(function(g){ return '<button class="lab" data-lab="'+g.id+'" aria-pressed="'+(g.id===S.active)+'"><span class="sw" style="background:'+g.color+'"></span>'+esc(g.name)+'<span class="c">'+countPts(g).length+'</span></button>'; }).join("")+
+    '<button class="lab add" data-lab="new">+ 새 라벨</button>';
+}
+function totalBadge(T,has){
+  var box=$("total"), show=false, n="", l="", c="#2f62f5";
+  if(S.fn==="count"){ var g=activeGroup(false); if(g){ show=true; n=countPts(g).length; l=g.name; c=g.color; } }
+  else if(S.fn==="area"&&has.A){ show=true; n=f(T.A,1); l="m² 면적"; }
+  else if(S.fn==="earth"&&has.E){ show=true; n=f(T.E,0); l="m³ 토공"; }
+  else if(S.fn==="length"&&has.L){ show=true; n=f(T.L,2); l="m 길이"; }
+  box.hidden=!show||!S.photo; $("totalN").textContent=n; $("totalL").textContent=l; $("totalDot").style.background=c;
+}
+function refresh(){ render(); list(); }
+function hint(t){ $("hint").textContent=t; }
+
+/* =========================================================
+   기능과 모드
+   ========================================================= */
+var HINTS={
+  count_auto:"셀 대상이 모인 범위를 상자로 감싸세요. 그 안의 개수를 자동으로 세어 번호를 붙입니다.",
+  count_ex:"셀 대상 하나만 상자로 감싸세요. 사진 전체에서 비슷한 것을 찾아 셉니다.",
+  count_edit:"빠진 대상은 눌러 추가하고, 잘못 잡힌 번호는 눌러 빼세요.",
+  auto:"재고 싶은 면을 한 번 누르세요.",
+  poly:"범위의 꼭지점을 차례로 누르세요. 첫 점을 다시 누르면 닫힙니다.",
+  earth:"터파기 구역 경계를 따라 꼭지점을 누르세요. 첫 점을 다시 누르면 닫힙니다.",
+  line:"잴 구간의 양 끝을 차례로 누르세요.",
+  scale_len:"길이를 아는 물체의 양 끝을 차례로 누르세요.",
+  scale_plane:"바닥에서 크기를 아는 직사각형의 네 모서리를 둘레 순서대로 누르세요. 잴 범위를 거의 덮을수록 정확합니다."
+};
+function modeHint(){
+  var m=S.mode, h=m==="count"?HINTS["count_"+S.cntMode]:m==="scale"?HINTS["scale_"+S.calMode]:HINTS[m];
+  if(!S.photo) return "먼저 사진을 찍거나 불러오세요.";
+  if(!S.cal&&(m==="auto"||m==="poly"||m==="earth"||m==="line")) h+=" 수치는 ‘기준 치수’를 잡은 뒤 나옵니다.";
+  return h;
+}
+function press(id,on){ $(id).setAttribute("aria-pressed",String(!!on)); }
+function setFn(fn){
+  S.grpOpen={}; $("t-length").hidden=true;
+  if(S.editing){ S.editing=false; $("editBtn").setAttribute("aria-pressed","false"); selH=null; }
+  S.fn=fn; ["count","area","earth","length"].forEach(function(k){ $("fn-"+k).setAttribute("aria-selected",String(k===fn)); });
+  setMode(fn==="count"?"count":fn==="area"?S.areaSub:fn==="earth"?"earth":"line");
+}
+function setMode(m){
+  if(S.editing){ S.editing=false; $("editBtn").setAttribute("aria-pressed","false"); selH=null; }
+  if(m!=="scale") S.prevMode=m;
+  S.mode=m; S.pend=null; S.calDraft=[]; S.lenDraft=null; if(m!=="poly"&&m!=="earth") S.draft=[];
+  $("t-count").hidden=m!=="count"; $("t-area").hidden=!(m==="auto"||m==="poly"); $("ctx-auto").hidden=m!=="auto";
+  $("t-earth").hidden=m!=="earth"; $("t-scale").hidden=m!=="scale"; $("t-length").hidden=m!=="line"; if(m!=="line") S.chainColor=null;
+  $("ctx-draw").hidden=!(m==="poly"||m==="earth"); $("ctx-snap").hidden=!SNAPMODES[m]; $("t-edit").hidden=true;
+  $("formLen").hidden=true; $("formPlane").hidden=true;
+  press("ar-auto",S.areaSub==="auto"); press("ar-poly",S.areaSub==="poly");
+  press("ea-plan",S.earthView==="plan"); press("ea-sec",S.earthView==="section");
+  hint(modeHint()); refresh();
+}
+function setCntMode(k){ S.cntMode=k; press("cnt-auto",k==="auto"); press("cnt-ex",k==="ex"); press("cnt-edit",k==="edit"); $("whatRow").hidden=k!=="auto"||!AI; $("thrRow").hidden=k!=="ex"; hint(modeHint()); }
+function setCalMode(k){ S.calMode=k; S.pend=null; S.calDraft=[]; S.lenDraft=null; press("cal-len",k==="len"); press("cal-plane",k==="plane");
+  $("formLen").hidden=true; $("formPlane").hidden=true; hint(modeHint()); render(); }
+function closeDraft(){
+  if(S.draft.length<3) return; pushUndo();
+  var it={ id:++S.seq, type:"poly", kind:S.mode==="earth"?"earth":"area", pts:S.draft.slice(), color:nextColor() };
+  if(it.kind==="earth"){ it.view=S.earthView; it.depths="2.0"; it.slope=0.5; it.edge="top"; it.len=10; it.soil="보통토사"; it.L=1.25; it.C=0.88; it.truck="15"; it._open=true; }
+  else { it.member="바닥"; it.thick=200; }
+  S.items.push(it); S.draft=[];
+  hint(it.kind==="earth"?"구역을 닫았습니다. 집계에서 깊이·경사·토질을 넣으세요.":"범위를 닫았습니다. 집계에서 부재와 두께를 확인하세요."); refresh();
+}
+
+/* =========================================================
+   포인터: 누른 채 조준, 떼면 확정
+   ========================================================= */
+/* =========================================================
+   되돌리기 · 다시 실행 · 취소
+   ========================================================= */
+var UNDO=[], REDO=[];
+function cp(p){ return p?{x:p.x,y:p.y}:null; }
+function cloneItem(it){ var c=Object.assign({},it);
+  if(it.pts) c.pts=it.pts.map(cp); if(it.holes) c.holes=it.holes.map(function(h){ return h.map(cp); }); if(it.a) c.a=cp(it.a); if(it.b) c.b=cp(it.b);
+  if(it.type==="count"){ c.examples=it.examples.slice(); c.regions=(it.regions||[]).map(function(r){ return Object.assign({},r,{pts:r.pts.slice()}); });
+    c.adds=it.adds.slice(); c.removes=it.removes.slice(); c.hits=it.hits.slice(); c.simHits=(it.simHits||[]).slice(); }
+  return c; }
+function cloneCal(c){ return c?Object.assign({},c,{pts:c.pts.map(cp)}):null; }
+function snapState(){ return { items:S.items.map(cloneItem), cal:cloneCal(S.cal), draft:S.draft.map(cp), calDraft:S.calDraft.map(cp), pend:cp(S.pend), lenDraft:S.lenDraft?S.lenDraft.map(cp):null, active:S.active }; }
+function restoreState(st){ S.items=st.items.map(cloneItem); S.cal=cloneCal(st.cal); S.calVer++; S.draft=st.draft.map(cp); S.calDraft=st.calDraft.map(cp); S.pend=cp(st.pend); S.lenDraft=st.lenDraft?st.lenDraft.map(cp):null; S.active=st.active;
+  if(S.mode==="scale"){ $("formPlane").hidden=!(S.calMode==="plane"&&S.calDraft.length===4); $("formLen").hidden=!S.lenDraft; }
+  selH=null; refresh(); }
+function pushUndo(){ UNDO.push(snapState()); if(UNDO.length>100) UNDO.shift(); REDO=[]; undoBtns(); }
+function undoBtns(){ $("undoBtn").disabled=!UNDO.length; $("redoBtn").disabled=!REDO.length; }
+function undo(){ if(aim) return; if(!UNDO.length){ hint("되돌릴 작업이 없습니다."); return; } REDO.push(snapState()); restoreState(UNDO.pop()); undoBtns(); hint("되돌렸습니다. 다시 실행하려면 ↷를 누르세요."); }
+function redo(){ if(aim) return; if(!REDO.length) return; UNDO.push(snapState()); restoreState(REDO.pop()); undoBtns(); hint("다시 실행했습니다."); }
+function clearHistory(){ UNDO=[]; REDO=[]; undoBtns(); }
+function inProgress(){ return S.draft.length>0||!!S.pend||S.calDraft.length>0; }
+function cancelDraw(){
+  if(aim){ aim=null; loupe.hidden=true; render(); hint("방금 그리던 것을 취소했습니다."); return; }
+  if(!inProgress()) return;
+  pushUndo(); S.chainColor=null; S.draft=[]; S.pend=null; S.calDraft=[]; S.lenDraft=null; $("formLen").hidden=true; $("formPlane").hidden=true;
+  hint("그리던 것을 취소했습니다. "+modeHint()); refresh(); }
+function busyRegions(){ var a=[]; S.items.forEach(function(g){ if(g.type==="count") (g.regions||[]).forEach(function(r){ if(r.busy) a.push({g:g,r:r}); }); }); return a; }
+/* AI 결과는 현재 상태와 되돌리기 기록 모두에서 같은 범위(uid)를 찾아 반영한다 */
+function patchRegion(uid,fn){ [S.items].concat(UNDO.map(function(u){ return u.items; }),REDO.map(function(u){ return u.items; })).forEach(function(items){
+  items.forEach(function(g){ if(g.type!=="count") return; (g.regions||[]).forEach(function(r){ if(r.uid===uid) fn(r,g); }); }); }); }
+function cancelAI(){ var b=busyRegions(); if(!b.length) return; pushUndo();
+  b.forEach(function(x){ x.r.canceled=true; patchRegion(x.r.uid,function(r){ r.busy=false; r.canceled=true; }); x.g.regions=x.g.regions.filter(function(r){ return r.uid!==x.r.uid; }); rebuildHits(x.g); });
+  hint("AI 세기를 취소했습니다."); refresh(); }
+
+/* =========================================================
+   수정: 점·꼭지점·상자 모서리·개수 표시를 끌어 고치기
+   ========================================================= */
+var selH=null, drag=null;
+function boxCorners(b){ return [{x:b.x,y:b.y},{x:b.x+b.w,y:b.y},{x:b.x+b.w,y:b.y+b.h},{x:b.x,y:b.y+b.h}]; }
+function handles(){ var H=[];
+  if(S.cal) S.cal.pts.forEach(function(p,i){ H.push({k:"cal",i:i,x:p.x,y:p.y,pri:0}); });
+  S.draft.forEach(function(p,i){ H.push({k:"dv",i:i,x:p.x,y:p.y,pri:0}); });
+  S.items.forEach(function(it){
+    if(it.type==="poly"){ var n=it.pts.length; it.pts.forEach(function(p,i){ var q=it.pts[(i+1)%n]; H.push({k:"pv",it:it,i:i,x:p.x,y:p.y,pri:0},{k:"pm",it:it,i:i,x:(p.x+q.x)/2,y:(p.y+q.y)/2,pri:1}); });
+      (it.holes||[]).forEach(function(h,hi){ var m=h.length; h.forEach(function(p,i){ var q=h[(i+1)%m]; H.push({k:"hv",it:it,hi:hi,i:i,x:p.x,y:p.y,pri:0},{k:"hm",it:it,hi:hi,i:i,x:(p.x+q.x)/2,y:(p.y+q.y)/2,pri:1}); }); }); }
+    else if(it.type==="line"){ H.push({k:"la",it:it,x:it.a.x,y:it.a.y,pri:0},{k:"lb",it:it,x:it.b.x,y:it.b.y,pri:0}); }
+    else if(it.type==="count"){
+      it.examples.forEach(function(e,i){ boxCorners(e).forEach(function(c,j){ H.push({k:"ex",it:it,i:i,j:j,x:c.x,y:c.y,pri:0}); }); });
+      (it.regions||[]).forEach(function(r,i){ if(r.busy) return; boxCorners(r).forEach(function(c,j){ H.push({k:"rg",it:it,i:i,j:j,x:c.x,y:c.y,pri:0}); }); });
+      countPts(it).forEach(function(q){ H.push({k:"cp",it:it,q:q,x:q.x,y:q.y,pri:2}); }); }
+  });
+  return H; }
+function pickHandle(p){ var r=tolPx()*0.8, best=null, bs=1e9;
+  handles().forEach(function(h){ var d=Math.hypot(h.x-p.x,h.y-p.y); if(d>r) return; var sc=d+h.pri*r*0.4; if(sc<bs){ bs=sc; best=h; } }); return best; }
+function segDist(p,a,b){ var dx=b.x-a.x, dy=b.y-a.y, L=dx*dx+dy*dy||1, t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/L)); return Math.hypot(p.x-a.x-t*dx,p.y-a.y-t*dy); }
+function inPoly(p,pts){ var c=false; for (var i=0,j=pts.length-1;i<pts.length;j=i++){ var a=pts[i], b=pts[j]; if(((a.y>p.y)!==(b.y>p.y))&&(p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)) c=!c; } return c; }
+function inBox(p,b){ return p.x>=b.x&&p.x<=b.x+b.w&&p.y>=b.y&&p.y<=b.y+b.h; }
+function pickItem(p){ var r=tolPx()*0.6, hit=null;
+  for (var k=S.items.length-1;k>=0&&!hit;k--){ var it=S.items[k];
+    if(it.type==="line"&&segDist(p,it.a,it.b)<r) hit={k:"item",it:it};
+    else if(it.type==="poly"&&inPoly(p,it.pts)&&!(it.holes||[]).some(function(h){ return inPoly(p,h); })) hit={k:"item",it:it};
+    else if(it.type==="region"&&it.mask[Math.round(p.y)*S.W+Math.round(p.x)]) hit={k:"item",it:it};
+    else if(it.type==="count"){ it.examples.forEach(function(e,i){ if(!hit&&inBox(p,e)) hit={k:"exbox",it:it,i:i}; }); (it.regions||[]).forEach(function(rg,i){ if(!hit&&!rg.busy&&inBox(p,rg)) hit={k:"rgbox",it:it,i:i}; }); } }
+  return hit; }
+function itemName(it){ numberItems(); var K={count:"개수",area:"면적",earth:"토공",length:"길이"}[kindOf(it)]; return K+" "+it.no+(it.name?" ("+it.name+")":""); }
+function selText(){ if(!selH) return "선택된 것이 없습니다. 점·상자 모서리·번호를 끌어 옮기거나, 눌러서 선택한 뒤 삭제하세요.";
+  switch(selH.k){
+    case "pv": return itemName(selH.it)+"의 꼭지점 "+(selH.i+1)+" 선택됨";
+    case "hv": return itemName(selH.it)+"의 개구부 꼭지점 선택됨 (개구부 꼭지점이 3개뿐이면 개구부를 지웁니다)";
+    case "dv": return "그리던 다각형의 점 "+(selH.i+1)+" 선택됨";
+    case "la": case "lb": return itemName(selH.it)+"의 끝점 선택됨";
+    case "cal": return "기준 치수 점 "+(selH.i+1)+" 선택됨 (삭제하면 기준 치수 전체가 지워집니다)";
+    case "cp": return itemName(selH.it)+"의 표시 1개 선택됨";
+    case "ex": case "exbox": return itemName(selH.it)+"의 예시 상자 선택됨";
+    case "rg": case "rgbox": return itemName(selH.it)+"의 AI 범위 선택됨 (삭제하면 그 범위의 개수도 빠집니다)";
+    default: return itemName(selH.it)+" 선택됨"; } }
+function editPanel(){ $("editInfo").textContent=selText(); $("editDel").disabled=!selH; }
+function setEditing(on){
+  S.editing=!!on; $("editBtn").setAttribute("aria-pressed",String(S.editing)); selH=null;
+  if(S.editing){ ["t-count","t-area","t-earth","t-scale","ctx-draw","ctx-snap","ctx-cancel","ctx-busy"].forEach(function(id){ $(id).hidden=true; }); $("t-edit").hidden=false;
+    hint("수정 중: 점·꼭지점·상자 모서리·번호를 끌어 옮기세요. 다각형 변의 가운데 점을 끌면 꼭지점이 늘어납니다."); editPanel(); render(); }
+  else { $("t-edit").hidden=true; setMode(S.mode); }
+}
+function editSnap(p,self){ var r=tolPx(), rv=r*0.6, best=null, bd=rv;
+  if(S.snapOn.v){ userPts().forEach(function(q){ if(q===self) return; var d=Math.hypot(q.x-p.x,q.y-p.y); if(d<bd){ bd=d; best=q; } });
+    if(!best){ var bs=0; S.corners.forEach(function(k){ var d=Math.hypot(k.x-p.x,k.y-p.y); if(d>=rv) return; var sc=Math.pow(k.r/S.cmax,0.25)*(1-d/rv); if(sc>bs){ bs=sc; best=k; } }); }
+    if(best) return { p:{x:best.x,y:best.y}, label:"꼭지점", kind:"v" }; }
+  if(S.snapOn.e){ var e=edgeNear(p,r); if(e) return { p:e, label:"끝선", kind:"e" }; }
+  return { p:p }; }
+function editStart(p){ var h=pickHandle(p); drag={ h:h, start:p, moved:false }; }
+function editMove(e){ var p=toImg(e), h=drag.h; if(!h) return;
+  if(!drag.moved){ if(Math.hypot(p.x-drag.start.x,p.y-drag.start.y)<3) return; pushUndo(); drag.moved=true;
+    if(h.k==="pm"){ h.it.pts.splice(h.i+1,0,{x:h.x,y:h.y}); h.k="pv"; h.i=h.i+1; }
+    if(h.k==="hm"){ h.it.holes[h.hi].splice(h.i+1,0,{x:h.x,y:h.y}); h.k="hv"; h.i=h.i+1; }
+    if(h.it&&h.it.type==="poly") h.it.edited=true;
+    if(h.k==="ex"){ h.it.examples[h.i]=Object.assign({},h.it.examples[h.i],{maps:null}); }
+    if(h.k==="rg"){ h.it.regions[h.i]=Object.assign({},h.it.regions[h.i]); } }
+  var snapPt=function(self){ var sn=editSnap(p,self); aim={snap:sn}; return sn.p; }, q;
+  switch(h.k){
+    case "pv": q=snapPt(h.it.pts[h.i]); h.it.pts[h.i]={x:q.x,y:q.y}; break;
+    case "hv": q=snapPt(h.it.holes[h.hi][h.i]); h.it.holes[h.hi][h.i]={x:q.x,y:q.y}; break;
+    case "dv": q=snapPt(S.draft[h.i]); S.draft[h.i]={x:q.x,y:q.y}; break;
+    case "la": q=snapPt(h.it.a); h.it.a={x:q.x,y:q.y}; break;
+    case "lb": q=snapPt(h.it.b); h.it.b={x:q.x,y:q.y}; break;
+    case "cal": q=snapPt(S.cal.pts[h.i]); var c=cloneCal(S.cal); c.pts[h.i]={x:q.x,y:q.y};
+      if(c.type==="len") c.s=(c.mm/1000)/Math.max(1,Math.hypot(c.pts[0].x-c.pts[1].x,c.pts[0].y-c.pts[1].y));
+      else { var nc=planeCal(c.pts,c.w,c.h); if(nc){ nc.assumed=c.assumed; c=nc; } }
+      setCal(c); break;
+    case "ex": case "rg": var arr=h.k==="ex"?h.it.examples:h.it.regions, b=arr[h.i], o=boxCorners(b)[(h.j+2)%4];
+      arr[h.i]=Object.assign(b,{ x:Math.min(o.x,p.x), y:Math.min(o.y,p.y), w:Math.max(4,Math.abs(p.x-o.x)), h:Math.max(4,Math.abs(p.y-o.y)) }); aim={snap:{p:p}}; break;
+    case "cp": drag.to={x:p.x,y:p.y}; aim={snap:{p:p}}; break; }
+  render(); drawLoupe(aim.snap.p,e.clientX,cv.getBoundingClientRect()); }
+function editEnd(e){ var d=drag; drag=null; aim=null; loupe.hidden=true; if(!d) return;
+  if(!d.moved){ selH=d.h&&d.h.k!=="pm"?d.h:pickItem(d.start); editPanel(); render(); return; }
+  var h=d.h; selH=h;
+  if(h.k==="ex"){ peaks(h.it); hint("예시 상자를 고쳐 다시 셌습니다: "+countPts(h.it).length+"개"); }
+  else if(h.k==="rg"){ var rg=h.it.regions[h.i]; autoCount(h.it,{x:rg.x,y:rg.y,w:rg.w,h:rg.h},rg); }
+  else if(h.k==="cp"&&d.to){ var g=h.it, q=h.q, ai=g.adds.indexOf(q);
+    if(ai>=0) g.adds[ai]={x:d.to.x,y:d.to.y,r:q.r}; else { g.removes.push({x:q.x,y:q.y}); g.adds.push({x:d.to.x,y:d.to.y,r:q.r}); rebuildHits(g); }
+    selH=null; hint("표시를 옮겼습니다."); }
+  else hint("고쳤습니다. 잘못 고쳤으면 ↶로 되돌리세요.");
+  editPanel(); refresh(); }
+function deleteSel(){ if(!selH) return; pushUndo(); var h=selH, it=h.it;
+  switch(h.k){
+    case "hv": it.edited=true; if(it.holes[h.hi].length>3){ it.holes[h.hi].splice(h.i,1); hint("개구부 꼭지점을 지웠습니다."); } else { it.holes.splice(h.hi,1); hint("개구부를 지웠습니다. 면적에서 빼지 않습니다."); } break;
+    case "pv": it.edited=true; if(it.pts.length>3){ it.pts.splice(h.i,1); hint("꼭지점을 지웠습니다."); } else { S.items.splice(S.items.indexOf(it),1); hint("꼭지점이 3개뿐이라 다각형을 지웠습니다."); } break;
+    case "dv": S.draft.splice(h.i,1); hint("점을 지웠습니다."); break;
+    case "cal": S.cal=null; S.calVer++; hint("기준 치수를 지웠습니다."); break;
+    case "cp": var ai=it.adds.indexOf(h.q); if(ai>=0) it.adds.splice(ai,1); else { it.removes.push({x:h.q.x,y:h.q.y}); rebuildHits(it); } hint("표시 1개를 뺐습니다."); break;
+    case "ex": case "exbox": it.examples.splice(h.i,1); if(it.examples.length) peaks(it); else { it.simHits=[]; rebuildHits(it); } hint("예시 상자를 지웠습니다."); break;
+    case "rg": case "rgbox": it.regions.splice(h.i,1); rebuildHits(it); hint("AI 범위를 지웠습니다."); break;
+    default: S.items.splice(S.items.indexOf(it),1); if(S.active===it.id) S.active=null; hint("지웠습니다."); }
+  selH=null; editPanel(); refresh(); }
+
+function toImg(e){ var r=cv.getBoundingClientRect(); return { x:(e.clientX-r.left)*S.W/r.width, y:(e.clientY-r.top)*S.H/r.height }; }
+function updateAim(e){
+  var p=toImg(e); aim.raw=p; aim.snap=SNAPMODES[S.mode]?snap(p):{p:p};
+  if(S.mode==="count"&&S.cntMode!=="edit"){ var a=aim.start; aim.box={x:Math.min(a.x,p.x),y:Math.min(a.y,p.y),w:Math.abs(p.x-a.x),h:Math.abs(p.y-a.y)}; }
+  render(); drawLoupe(aim.snap.p,e.clientX,cv.getBoundingClientRect());
+}
+cv.addEventListener("pointerdown",function(e){ if(e.button>0||!S.photo) return; e.preventDefault(); try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+  if(S.editing){ editStart(toImg(e)); return; } aim={start:toImg(e)}; updateAim(e); });
+cv.addEventListener("pointermove",function(e){ if(S.editing){ if(drag) editMove(e); return; } if(aim) updateAim(e); });
+cv.addEventListener("pointercancel",function(){ if(drag&&drag.moved) undo(); drag=null; aim=null; loupe.hidden=true; render(); });
+cv.addEventListener("pointerup",function(e){ if(S.editing){ editEnd(e); return; } if(!aim) return; updateAim(e); var a=aim; aim=null; loupe.hidden=true; commit(a); });
+function commit(a){
+  var p=a.snap.p, m=S.mode;
+  if(m==="auto"){ pushUndo(); var res=addFace(p.x,p.y,+$("tol").value);
+    if(!res.it){ UNDO.pop(); undoBtns();
+      if(res.already){ numberItems(); hint("이미 잡은 면입니다 (면적 "+res.already.no+"). 경계를 고치려면 ✎ 수정에서 꼭지점을 끄세요."); }
+      else hint("잡힌 면이 너무 작습니다. 인식 범위를 높이거나 면 가운데를 눌러 보세요."); refresh(); return; }
+    hint(res.big?"사진의 넓은 부분이 잡혔습니다. 원하는 범위보다 크면 인식 범위를 낮추거나, ✎ 수정에서 꼭지점을 끌어 고치세요.":
+      "경계선까지 면을 잡았습니다 (꼭지점 "+res.it.pts.length+"개). 경계가 틀리면 ✎ 수정에서 꼭지점을 끌어 고치세요."+(S.cal?"":" 수치는 기준 치수를 잡은 뒤 나옵니다."));
+    refresh(); return; }
+  if(m==="poly"||m==="earth"){
+    if(S.draft.length>=3&&a.snap.target===S.draft[0]){ closeDraft(); return; }
+    var last=S.draft[S.draft.length-1]; if(last&&Math.hypot(last.x-p.x,last.y-p.y)<2){ render(); return; }
+    pushUndo(); S.draft.push({x:p.x,y:p.y}); hint(S.draft.length>=3?"첫 점을 다시 누르거나 ‘닫고 확정’을 누르세요.":modeHint()); refresh(); return; }
+  if(m==="scale"&&S.calMode==="plane"){
+    pushUndo(); if(S.calDraft.length>=4) S.calDraft=[];
+    S.calDraft.push({x:p.x,y:p.y});
+    if(S.calDraft.length===4){ $("formPlane").hidden=false; hint("이 직사각형의 실제 가로(1→2)와 세로(2→3)를 넣으세요."); }
+    else hint((S.calDraft.length+1)+"번째 모서리를 누르세요.");
+    render(); return; }
+  if(m==="line"||m==="scale"){
+    if(!S.pend){ pushUndo(); S.pend={x:p.x,y:p.y}; hint("반대쪽 끝을 누르세요."); render(); return; }
+    var q=S.pend; pushUndo(); S.pend=null;
+    if(Math.hypot(q.x-p.x,q.y-p.y)<4){ UNDO.pop(); undoBtns(); S.pend=q; hint("두 점이 너무 가깝습니다. 다시 눌러 주세요."); render(); return; }
+    if(m==="line"){ var lc=S.chainColor&&S.chain?S.chainColor:nextColor(); S.items.push({ id:++S.seq, type:"line", name:"길이", a:q, b:{x:p.x,y:p.y}, color:lc });
+      if(S.chain){ S.chainColor=lc; S.pend={x:p.x,y:p.y}; hint("다음 끝점을 누르세요. 끝내려면 ‘그리던 것 취소’나 Esc."); } else hint(modeHint()); refresh(); }
+    else { S.lenDraft=[q,{x:p.x,y:p.y}]; S.calDraft=S.lenDraft.slice(); $("formLen").hidden=false; hint("이 선의 실제 길이를 넣으세요."); render(); $("refMm").focus(); }
+    return; }
+  if(m==="count"){
+    if(S.cntMode==="auto"){ var bx=a.box;
+      if(!bx||bx.w<12||bx.h<12){ hint("손을 떼지 말고 대각선으로 끌어, 셀 대상이 모인 범위를 상자로 감싸 주세요."); render(); return; }
+      var ag=activeGroup(false); if(!ag||ag.examples.length){ S.active=null; ag=activeGroup(true); }
+      autoCount(ag,{x:bx.x,y:bx.y,w:bx.w,h:bx.h}); return; }
+    if(S.cntMode==="ex"){ var b=a.box;
+      if(!b||b.w<5||b.h<5){ hint("손을 떼지 말고 대각선으로 끌어 상자를 그려 주세요."); render(); return; }
+      pushUndo(); var gr=activeGroup(true); $("status").textContent="세는 중…";
+      setTimeout(function(){ addExample(gr,{x:b.x,y:b.y,w:b.w,h:b.h}); $("status").textContent="";
+        var n=countPts(gr).length;
+        hint(n<=1?"1개만 찾았습니다. 상자가 여러 개를 함께 감쌌다면 ‘범위 자동’을 쓰세요. 이 방식은 대상 하나만 감싸야 합니다.":n+"개를 찾았습니다. 빠지거나 잘못 잡힌 것은 ‘추가 · 제외’로 고치세요."); refresh(); },30);
+      return; }
+    pushUndo(); var g=activeGroup(true), pts=countPts(g), hit=null, hd=Infinity;
+    pts.forEach(function(q){ var d=Math.hypot(q.x-p.x,q.y-p.y), lim=Math.max((q.r||6)*0.9,tolPx()*0.5); if(d<lim&&d<hd){ hd=d; hit=q; } });
+    if(hit){ var ai=g.adds.indexOf(hit); if(ai>=0) g.adds.splice(ai,1); else { g.removes.push({x:hit.x,y:hit.y}); g.hits.splice(g.hits.indexOf(hit),1); } }
+    else { var rr=g.examples.length?Math.min(g.examples[0].w,g.examples[0].h)/2:7; g.adds.push({x:p.x,y:p.y,r:rr}); }
+    refresh(); }
+}
+
+/* =========================================================
+   컨트롤
+   ========================================================= */
+["count","area","earth","length"].forEach(function(k){ $("fn-"+k).addEventListener("click",function(){ setFn(k); }); });
+$("ar-auto").addEventListener("click",function(){ S.areaSub="auto"; setMode("auto"); });
+$("ar-poly").addEventListener("click",function(){ S.areaSub="poly"; setMode("poly"); });
+$("ea-plan").addEventListener("click",function(){ S.earthView="plan"; setMode("earth"); });
+$("ea-sec").addEventListener("click",function(){ S.earthView="section"; setMode("earth"); });
+[["sn-v","v"],["sn-e","e"],["sn-r","r"],["sn-hv","hv"]].forEach(function(p){ $(p[0]).addEventListener("click",function(){ S.snapOn[p[1]]=!S.snapOn[p[1]]; this.setAttribute("aria-pressed",String(S.snapOn[p[1]])); }); });
+$("undoPt").addEventListener("click",function(){ if(!S.draft.length) return; pushUndo(); S.draft.pop(); refresh(); });
+$("closePoly").addEventListener("click",closeDraft);
+$("cnt-auto").addEventListener("click",function(){ setCntMode("auto"); });
+$("cnt-ex").addEventListener("click",function(){ setCntMode("ex"); });
+$("cnt-edit").addEventListener("click",function(){ setCntMode("edit"); });
+$("labels").addEventListener("click",function(e){ var b=e.target.closest("[data-lab]"); if(!b) return; var v=b.getAttribute("data-lab");
+  if(v==="new"){ S.active=null; setCntMode(S.cntMode==="edit"?"auto":S.cntMode); hint("새 라벨: "+modeHint()); }
+  else { S.active=+v; var g=activeGroup(false); if(g){ $("thr").value=Math.round(g.thr*100); $("thrV").textContent=g.thr.toFixed(2); } }
+  refresh(); });
+$("scaleBtn").addEventListener("click",function(){ if(!S.photo) return; setMode("scale"); setCalMode(S.calMode); });
+$("calDone").addEventListener("click",function(){ setFn(S.fn); });
+$("cal-len").addEventListener("click",function(){ setCalMode("len"); });
+$("cal-plane").addEventListener("click",function(){ setCalMode("plane"); });
+$("thr").addEventListener("input",function(){ $("thrV").textContent=(this.value/100).toFixed(2); });
+$("thr").addEventListener("change",function(){ var g=activeGroup(false); if(g){ pushUndo(); g.thr=this.value/100; peaks(g); refresh(); } });
+$("presetLen").addEventListener("click",function(e){ var mm=e.target.getAttribute("data-mm"); if(mm) $("refMm").value=mm; });
+$("presetPlane").addEventListener("click",function(e){ var w=e.target.getAttribute("data-w"); if(w){ $("plW").value=w; $("plH").value=e.target.getAttribute("data-h"); } });
+$("applyLen").addEventListener("click",function(){
+  var mm=+$("refMm").value, d=S.lenDraft; if(!(mm>0)||!d){ hint("실제 길이를 mm로 넣으세요."); return; }
+  pushUndo(); setCal({ type:"len", pts:d, mm:mm, s:(mm/1000)/Math.hypot(d[0].x-d[1].x,d[0].y-d[1].y) }); setFn(S.fn==="count"?"area":S.fn); });
+$("applyPlane").addEventListener("click",function(){
+  var w=+$("plW").value, h=+$("plH").value, p=S.calDraft; if(!(w>0&&h>0)||p.length!==4){ hint("가로와 세로를 m로 넣으세요."); return; }
+  var c=planeCal(p,w,h); if(!c){ hint("네 점이 한 줄에 가깝습니다. 다시 찍어 주세요."); return; }
+  pushUndo(); setCal(c); setFn(S.fn==="count"?"earth":S.fn); hint("바닥 평면 보정을 적용했습니다. 바닥 위의 범위나 길이를 재세요."); });
+$("tol").addEventListener("input",function(){ $("tolV").textContent=this.value; });
+$("tol").addEventListener("change",function(){ var last=S.items[S.items.length-1];
+  if(last&&last.auto&&!last.edited){ pushUndo(); var r=addFace(last.seed.x,last.seed.y,+this.value,last); if(!r.it){ UNDO.pop(); undoBtns(); } else hint("마지막 면을 새 인식 범위로 다시 잡았습니다."); refresh(); } });
+$("groups").addEventListener("change",function(e){
+  var id=+e.target.getAttribute("data-id"), k=e.target.getAttribute("data-k"); if(!id||!k) return;
+  var it=S.items.filter(function(i){ return i.id===id; })[0]; if(!it) return;
+  pushUndo(); it[k]=e.target.value; if(k==="soil"&&SOILS[it.soil]){ it.L=SOILS[it.soil].L; it.C=SOILS[it.soil].C; } refresh(); });
+$("groups").addEventListener("toggle",function(e){ var g=e.target.getAttribute&&e.target.getAttribute("data-g"); if(g){ S.grpOpen[g]=e.target.open; return; } var id=+e.target.getAttribute("data-open"); if(!id) return;
+  var it=S.items.filter(function(i){ return i.id===id; })[0]; if(it) it._open=e.target.open; },true);
+$("groups").addEventListener("click",function(e){
+  var del=+e.target.getAttribute("data-del"), act=+e.target.getAttribute("data-act");
+  if(del){ pushUndo(); S.items=S.items.filter(function(i){ return i.id!==del; }); if(S.active===del) S.active=null; refresh(); }
+  if(act){ var g=S.items.filter(function(i){ return i.id===act; })[0]; S.active=act; $("thr").value=Math.round(g.thr*100); $("thrV").textContent=g.thr.toFixed(2); setFn("count"); } });
+function resetMeasure(){ clearHistory(); selH=null; drag=null; if(S.editing) setEditing(false); S.items=[]; S.cal=null; S.calVer++; S.pend=null; S.draft=[]; S.calDraft=[]; S.lenDraft=null; S.active=null; S.seq=0; }
+function loadImage(img,label){
+  S.src=img; setPhoto(img,img.naturalWidth||img.width,img.naturalHeight||img.height); resetMeasure();
+  $("empty").hidden=true; $("stageWrap").hidden=false;
+  $("sampleTag").textContent=label; $("sampleTag").hidden=!label; sampleButtons(null);
+}
+function openFile(file){ if(!file) return; var url=URL.createObjectURL(file), img=new Image();
+  $("status").textContent="사진을 여는 중…";
+  img.onload=function(){ loadImage(img,""); URL.revokeObjectURL(url); $("status").textContent=""; setFn(S.fn);
+    hint(S.fn==="count"?HINTS.count_ex:"무엇을 잴지 위 기능에서 고르세요. 면적·토공·길이는 ‘기준 치수’를 먼저 잡아야 수치가 나옵니다."); };
+  img.onerror=function(){ URL.revokeObjectURL(url); $("status").textContent=""; hint("이 파일은 열 수 없습니다. JPG나 PNG 사진을 골라 주세요."); };
+  img.src=url; }
+["shoot","pick","shoot2","pick2"].forEach(function(id){ $(id).addEventListener("change",function(){ var file=this.files[0]; this.value=""; openFile(file); }); });
+
+/* ---------- 범위 자동 세기 (AI 비전) ---------- */
+function cropBlob(box,cb){
+  var src=S.src||S.photo, k=(src.naturalWidth||src.width)/S.W, sw=box.w*k, sh=box.h*k, sc=Math.min(2,1200/Math.max(sw,sh));
+  var c=document.createElement("canvas"); c.width=Math.max(16,Math.round(sw*sc)); c.height=Math.max(16,Math.round(sh*sc));
+  var g=c.getContext("2d"); g.imageSmoothingQuality="high"; g.drawImage(src,box.x*k,box.y*k,sw,sh,0,0,c.width,c.height);
+  c.toBlob(cb,"image/jpeg",0.88);
+}
+/* ---------- 범위 자동 세기 (기기 자체 분석: AI를 못 쓸 때) ----------
+   상자 테두리 색을 배경으로 보고, 배경과 다른 덩어리를 찾는다.
+   붙어 있는 덩어리는 거리변환 최댓값(= 낱개 반지름)으로 낱개 면적을 추정해 나눈다. */
+function toLab(r,g,b){ function f(c){ c/=255; return c<=0.04045?c/12.92:Math.pow((c+0.055)/1.055,2.4); }
+  var R=f(r),G=f(g),B=f(b), X=(R*0.4124+G*0.3576+B*0.1805)/0.95047, Y=R*0.2126+G*0.7152+B*0.0722, Z=(R*0.0193+G*0.1192+B*0.9505)/1.08883;
+  function h(t){ return t>0.008856?Math.cbrt(t):7.787*t+16/116; } var fx=h(X),fy=h(Y),fz=h(Z); return [116*fy-16,500*(fx-fy),200*(fy-fz)]; }
+function kmeans(P,k,it){ var n=P.length; if(!n) return {c:[],a:new Int32Array(0)}; var c=[P[0].slice()];
+  while(c.length<k){ var bi=0,bd=-1; for (var i=0;i<n;i++){ var d=1e9; c.forEach(function(q){ d=Math.min(d,dist3(P[i],q)); }); if(d>bd){ bd=d; bi=i; } } c.push(P[bi].slice()); }
+  var a=new Int32Array(n);
+  for (var t=0;t<(it||10);t++){ var s=c.map(function(){ return [0,0,0,0]; });
+    for (var i=0;i<n;i++){ var bj=0,bd=1e9; for (var j=0;j<c.length;j++){ var d=dist3(P[i],c[j]); if(d<bd){ bd=d; bj=j; } } a[i]=bj; var q=s[bj]; q[0]+=P[i][0]; q[1]+=P[i][1]; q[2]+=P[i][2]; q[3]++; }
+    c=c.map(function(q,j){ return s[j][3]?[s[j][0]/s[j][3],s[j][1]/s[j][3],s[j][2]/s[j][3]]:q; }); }
+  var cnt=c.map(function(){ return 0; }); for (var i=0;i<n;i++) cnt[a[i]]++; return {c:c,a:a,n:cnt}; }
+function dist3(p,q){ var a=p[0]-q[0],b=p[1]-q[1],c=p[2]-q[2]; return Math.sqrt(a*a+b*b+c*c); }
+function otsu(v,lo,hi){ var B=64,h=new Float64Array(B),n=v.length; for (var i=0;i<n;i++){ var t=Math.min(B-1,Math.max(0,Math.floor((v[i]-lo)/(hi-lo)*B))); h[t]++; }
+  var sum=0; for (var i=0;i<B;i++) sum+=i*h[i]; var wB=0,sB=0,best=0,bt=B/2;
+  for (var i=0;i<B;i++){ wB+=h[i]; if(!wB) continue; var wF=n-wB; if(!wF) break; sB+=i*h[i]; var mB=sB/wB,mF=(sum-sB)/wF,bv=wB*wF*(mB-mF)*(mB-mF); if(bv>best){ best=bv; bt=i; } }
+  return lo+(bt+0.5)/B*(hi-lo); }
+function localCount(box){
+  var sc=Math.min(1,420/Math.max(box.w,box.h)), W=Math.max(8,Math.round(box.w*sc)), H=Math.max(8,Math.round(box.h*sc)), N=W*H;
+  var c=document.createElement("canvas"); c.width=W; c.height=H; var g=c.getContext("2d"); g.imageSmoothingQuality="high";
+  g.drawImage(S.photo,box.x,box.y,box.w,box.h,0,0,W,H); var d=g.getImageData(0,0,W,H).data, L=new Array(N);
+  for (var i=0;i<N;i++) L[i]=toLab(d[i*4],d[i*4+1],d[i*4+2]);
+  function maskFrom(bgc){ var dv=new Float32Array(N); for (var i=0;i<N;i++){ var m=1e9; for (var j=0;j<bgc.length;j++) m=Math.min(m,dist3(L[i],bgc[j])); dv[i]=m; }
+    var mx=0; for (var i=0;i<N;i++) if(dv[i]>mx) mx=dv[i]; var T=Math.max(10,otsu(dv,0,Math.min(120,mx)+1e-3)), M=new Uint8Array(N); for (var i=0;i<N;i++) M[i]=dv[i]>T?1:0; return M; }
+  var ring=[], bw=Math.max(2,Math.round(Math.min(W,H)*0.02)); for (var y=0;y<H;y++) for (var x=0;x<W;x++) if(x<bw||y<bw||x>=W-bw||y>=H-bw) ring.push(L[y*W+x]);
+  var km=kmeans(ring,3,8), bg=km.c.filter(function(q,j){ return km.n[j]>=ring.length*0.12; }), M=maskFrom(bg), fr=0; for (var i=0;i<N;i++) fr+=M[i];
+  if(fr>0.8*N||fr<0.02*N){ /* 대상이 상자를 거의 채움: 가장 어두운 색(틈·그림자)을 배경으로 */
+    var all=[]; for (var i=0;i<N;i+=2) all.push(L[i]); var k2=kmeans(all,3,8), dk=0; k2.c.forEach(function(q,j){ if(q[0]<k2.c[dk][0]) dk=j; }); M=maskFrom([k2.c[dk]]); }
+  function morph(A,er){ var B=new Uint8Array(N); for (var y=0;y<H;y++) for (var x=0;x<W;x++){ var v=er?1:0;
+      for (var dy=-1;dy<=1&&(er?v:!v);dy++) for (var dx=-1;dx<=1;dx++){ var xx=x+dx,yy=y+dy; var q=(xx<0||yy<0||xx>=W||yy>=H)?(er?1:0):A[yy*W+xx]; if(er&&!q){ v=0; break; } if(!er&&q){ v=1; break; } }
+      B[y*W+x]=v; } return B; }
+  M=morph(morph(M,true),false);
+  /* 구멍 메우기: 테두리에서 닿지 않는 배경은 물체 안쪽 */
+  var out=new Uint8Array(N), st=[]; for (var x=0;x<W;x++){ st.push(x,(H-1)*W+x); } for (var y=0;y<H;y++){ st.push(y*W,y*W+W-1); }
+  while(st.length){ var p=st.pop(); if(out[p]||M[p]) continue; out[p]=1; var x=p%W,y=(p/W)|0; if(x>0) st.push(p-1); if(x<W-1) st.push(p+1); if(y>0) st.push(p-W); if(y<H-1) st.push(p+W); }
+  /* 작은 구멍(반사·글자)만 메우고, 낱개 사이 틈은 남긴다 */
+  var hl=new Int32Array(N); for (var s1=0;s1<N;s1++){ if(out[s1]||M[s1]||hl[s1]) continue; var hq=[s1], hp=[]; hl[s1]=1;
+    while(hq.length){ var p=hq.pop(); hp.push(p); var x=p%W,y=(p/W)|0; [[1,0],[-1,0],[0,1],[0,-1]].forEach(function(o){ var xx=x+o[0],yy=y+o[1]; if(xx<0||yy<0||xx>=W||yy>=H) return; var r=yy*W+xx; if(!out[r]&&!M[r]&&!hl[r]){ hl[r]=1; hq.push(r); } }); }
+    if(hp.length<Math.max(20,N*0.0004)) hp.forEach(function(p){ M[p]=1; }); }
+  /* 거리변환 (체임퍼 3-4) */
+  var D=new Float32Array(N); for (var i=0;i<N;i++) D[i]=M[i]?1e6:0;
+  for (var y=0;y<H;y++) for (var x=0;x<W;x++){ var i=y*W+x; if(!D[i]) continue; var v=D[i];
+    if(x>0) v=Math.min(v,D[i-1]+3); if(y>0){ if(x>0) v=Math.min(v,D[i-W-1]+4); if(x<W-1) v=Math.min(v,D[i-W+1]+4); v=Math.min(v,D[i-W]+3); } if(x===0||y===0||x===W-1||y===H-1) v=Math.min(v,3); D[i]=v; }
+  for (var y=H-1;y>=0;y--) for (var x=W-1;x>=0;x--){ var i=y*W+x; if(!D[i]) continue; var v=D[i];
+    if(x<W-1) v=Math.min(v,D[i+1]+3); if(y<H-1){ v=Math.min(v,D[i+W]+3); if(x<W-1) v=Math.min(v,D[i+W+1]+4); if(x>0) v=Math.min(v,D[i+W-1]+4); } D[i]=v; }
+  for (var i=0;i<N;i++) D[i]/=3;
+  /* 덩어리 나누기 */
+  var lab=new Int32Array(N), comps=[];
+  for (var s0=0;s0<N;s0++){ if(!M[s0]||lab[s0]) continue; var id=comps.length+1, px=[], q=[s0]; lab[s0]=id; var rmax=0,border=false;
+    while(q.length){ var p=q.pop(); px.push(p); if(D[p]>rmax) rmax=D[p]; var x=p%W,y=(p/W)|0; if(x===0||y===0||x===W-1||y===H-1) border=true;
+      for (var dy=-1;dy<=1;dy++) for (var dx=-1;dx<=1;dx++){ var xx=x+dx,yy=y+dy; if(xx<0||yy<0||xx>=W||yy>=H) continue; var r=yy*W+xx; if(M[r]&&!lab[r]){ lab[r]=id; q.push(r); } } }
+    comps.push({ px:px, a:px.length, r:Math.max(1,rmax), border:border }); }
+  if(!comps.length) return [];
+  var areas=comps.map(function(c){ return c.a; }).sort(function(a,b){ return a-b; }), big=areas[areas.length-1];
+  comps=comps.filter(function(c){ return c.a>=Math.max(12,big*0.02); });
+  var rs=comps.map(function(c){ return c.r; }).sort(function(a,b){ return a-b; }), rmed=rs[Math.floor(rs.length/2)];
+  comps=comps.filter(function(c){ return c.r>=rmed*0.35; });
+  var ratios=comps.map(function(c){ return c.a/(c.r*c.r); }).sort(function(a,b){ return a-b; }), f=ratios[Math.floor((ratios.length-1)*0.3)]||Math.PI;
+  var pts=[];
+  comps.forEach(function(c){ var unit=f*c.r*c.r, k=Math.max(1,Math.round(c.a/unit));
+    if(c.border&&k===1&&c.a<0.5*f*rmed*rmed) return;
+    k=Math.min(k,200);
+    /* 거리변환 꼭대기에서 시작해 k개로 묶기 */
+    var seeds=[], ord=c.px.slice().sort(function(a,b){ return D[b]-D[a]; });
+    for (var t=0;t<ord.length&&seeds.length<k;t++){ var p=ord[t], x=p%W, y=(p/W)|0, ok=true; for (var j=0;j<seeds.length;j++){ if(Math.hypot(seeds[j][0]-x,seeds[j][1]-y)<c.r*1.2){ ok=false; break; } } if(ok) seeds.push([x,y]); }
+    for (var it=0;it<6&&seeds.length>1;it++){ var s=seeds.map(function(){ return [0,0,0]; });
+      c.px.forEach(function(p){ var x=p%W,y=(p/W)|0,bj=0,bd=1e18; for (var j=0;j<seeds.length;j++){ var dd=(seeds[j][0]-x)*(seeds[j][0]-x)+(seeds[j][1]-y)*(seeds[j][1]-y); if(dd<bd){ bd=dd; bj=j; } } s[bj][0]+=x; s[bj][1]+=y; s[bj][2]++; });
+      seeds=seeds.map(function(q,j){ return s[j][2]?[s[j][0]/s[j][2],s[j][1]/s[j][2]]:q; }); }
+    if(seeds.length===1){ var sx=0,sy=0; c.px.forEach(function(p){ sx+=p%W; sy+=(p/W)|0; }); seeds=[[sx/c.a,sy/c.a]]; }
+    seeds.forEach(function(q){ pts.push({ x:box.x+(q[0]+0.5)/sc, y:box.y+(q[1]+0.5)/sc, r:Math.max(5,c.r/sc*0.8), ai:false, loc:true }); }); });
+  return pts;
+}
+function localRegion(g,box,old,fromFail){
+  if(!old&&!fromFail) pushUndo();
+  var pts=localCount(box), reg={ uid:++REGSEQ, x:box.x, y:box.y, w:box.w, h:box.h, pts:pts, n:pts.length, local:true };
+  if(old){ var oi=g.regions.indexOf(old); if(oi>=0) g.regions[oi]=reg; else g.regions.push(reg); } else g.regions.push(reg); rebuildHits(g); refresh();
+  hint((fromFail?"AI를 쓸 수 없어 기기에서 직접 셌습니다. ":"")+(pts.length?pts.length+"개를 셌습니다 (기기 분석). 배경과 색이 다른 덩어리를 낱개 크기로 나눠 센 값이니, 빠지거나 잘못 붙은 번호는 ‘추가 · 제외’로 고치세요.":"범위 안에서 배경과 구분되는 대상을 찾지 못했습니다. 범위를 대상에 더 붙여 그리거나 ‘비슷한 것’을 쓰세요."));
+}
+var REGSEQ=0;
+function autoCount(g,box,old){
+  if(!AI||AIimg===false){ localRegion(g,box,old); return; }
+  if(!old) pushUndo();
+  var reg={ uid:++REGSEQ, x:box.x, y:box.y, w:box.w, h:box.h, pts:[], busy:true };
+  if(old){ var oi=g.regions.indexOf(old); if(oi>=0) g.regions[oi]=reg; else g.regions.push(reg); } else g.regions.push(reg); rebuildHits(g);
+  var what=$("cntWhat").value.trim();
+  hint("AI가 범위 안을 세는 중입니다… (10초 안팎)"); $("status").textContent=""; refresh();
+  cropBlob(box,function(blob){
+    var prompt="첨부 이미지는 건설 현장 사진에서 사용자가 상자로 지정한 범위를 잘라낸 것이다. "+
+      (what?"이 범위 안의 '"+what.slice(0,40)+"'을(를) 하나씩 세라. ":"이 범위 안에서 가장 많이 반복되는 같은 종류의 물체(부재, 자재, 장비, 안전시설 등) 하나를 정해 하나씩 세라. 바닥, 벽, 하늘 같은 배경은 세지 않는다. ")+
+      "서로 겹치거나 맞닿아 있어도 각각 따로 센다. 가장자리에서 잘린 것은 절반 이상 보일 때만 센다. "+
+      "각 물체 중심 위치를 이미지 왼쪽 위가 (0,0), 오른쪽 아래가 (1000,1000)인 정수 좌표로 적어라. "+
+      '설명 없이 JSON 하나만 출력: {"label":"물체 이름(한국어, 10자 이내)","count":정수,"points":[[x,y],...]} '+
+      "points 개수는 count와 같아야 한다. 300개를 넘으면 count는 정확히 적고 points는 300개까지만 적는다.";
+    AI.json(prompt,{ images:[blob], modelTier:"default" }).then(function(res){
+      if(reg.canceled) return;
+      var cur=S.items.filter(function(i){ return i.id===g.id; })[0]||g;
+      var pts=(res&&Array.isArray(res.points)?res.points:[]).filter(function(p){ return Array.isArray(p)&&isFinite(p[0])&&isFinite(p[1]); });
+      var n=res&&isFinite(res.count)?Math.round(res.count):pts.length;
+      if(!pts.length&&!n){ patchRegion(reg.uid,function(r){ r.busy=false; r.failed=true; }); cur.regions=cur.regions.filter(function(r){ return r.uid!==reg.uid; }); rebuildHits(cur); refresh(); hint("범위 안에서 셀 대상을 찾지 못했습니다. 세는 대상을 적거나 범위를 다시 그려 주세요."); return; }
+      var rr=Math.max(5,0.32*Math.sqrt(box.w*box.h/Math.max(1,pts.length||n)));
+      var newPts=pts.map(function(p){ return { x:box.x+Math.min(1000,Math.max(0,p[0]))/1000*box.w, y:box.y+Math.min(1000,Math.max(0,p[1]))/1000*box.h, r:rr, ai:true }; });
+      var label=String(res.label||"").slice(0,20);
+      patchRegion(reg.uid,function(r,gg){ r.busy=false; r.pts=newPts; r.n=n; r.label=label; if(/^개수 \d+$/.test(gg.name)&&label) gg.name=label; rebuildHits(gg); });
+      reg.pts=newPts; refresh();
+      var msg=reg.pts.length+"개를 셌습니다 (AI)."; if(n>reg.pts.length) msg+=" AI는 "+n+"개라고 답했지만 위치는 "+reg.pts.length+"개만 받았습니다.";
+      hint(msg+" 빠지거나 잘못 붙은 번호는 ‘추가 · 제외’로, 범위가 틀렸으면 ✎ 수정에서 모서리를 끌어 고치면 다시 셉니다.");
+    },function(e){
+      if(reg.canceled) return;
+      patchRegion(reg.uid,function(r){ r.busy=false; r.failed=true; });
+      var cur=S.items.filter(function(i){ return i.id===g.id; })[0]; if(cur){ cur.regions=cur.regions.filter(function(r){ return r.uid!==reg.uid; }); rebuildHits(cur); } refresh(); var c=e&&e.code;
+      if(cur&&c!=="rate_limited"){ localRegion(cur,box,null,true); return; }
+      hint(c==="not_granted"?"AI 사용을 허용하지 않아 자동으로 셀 수 없습니다. ‘비슷한 것’를 쓰세요.":
+           c==="rate_limited"?"AI 요청이 많습니다. 잠시 뒤 다시 범위를 그려 주세요.":
+           c==="images_unavailable"||c==="image_rejected"?"이 화면에서는 사진을 AI에 보낼 수 없습니다. ‘비슷한 것’를 쓰세요.":
+           "AI 자동 세기에 실패했습니다. 범위를 다시 그려 주세요.");
+    });
+  });
+}
+
+/* ---------- 내보내기 ---------- */
+function rows(){
+  numberItems();
+  var out=[["기능","번호","라벨/부재","면적(m2)","두께(mm)","부피(m3)","길이(m)","개수(개)","토공 자연(m3)","토공 흐트러진(m3)","덤프(대)"]];
+  S.items.forEach(function(it){ var k=kindOf(it);
+    if(k==="area"){ var q=it.type==="region"?regionQ(it):polyQ(it); out.push(["면적·부피",it.no,it.member,f(q.area,2),it.thick,f(q.area!=null?q.area*it.thick/1000:null,3),"","","","",""]); }
+    else if(k==="earth"){ var e=earthCalc(it)||{}; out.push(["토공",it.no,it.view==="section"?"단면×연장":"평면 구역",f(e.A,2),"","","","",f(e.V,1),f(e.loose,1),e.trucks||""]); }
+    else if(k==="length") out.push(["길이",it.no,it.name,"","","",S.cal?f(distW(it.a,it.b),2):"","","","",""]);
+    else out.push(["개수",it.no,it.name,"","","","",countPts(it).length,"","",""]); });
+  var OV=overlaps(), ovt=0; Object.keys(OV).forEach(function(k){ ovt+=OV[k]; });
+  if(ovt>1e-6) out.push(["면적 겹침 공제","","","-"+f(ovt,2),"","","","","","",""]);
+  var ta=0, tv=0, ha=false; S.items.forEach(function(it){ if(kindOf(it)!=="area") return; var q=it.type==="region"?regionQ(it):polyQ(it); if(q.area==null) return; ha=true; var a=q.area-Math.min(OV[it.id]||0,q.area); ta+=a; tv+=a*(+it.thick||0)/1000; });
+  if(ha) out.push(["면적·부피 합계","","",f(ta,2),"",f(tv,3),"","","","",""]);
+  var tl=0, hl=false; S.items.forEach(function(it){ if(it.type==="line"&&S.cal){ hl=true; tl+=distW(it.a,it.b); } }); if(hl) out.push(["길이 합계","","","","","",f(tl,2),"","","",""]);
+  var n=0; S.items.forEach(function(it){ if(it.type==="count") n+=countPts(it).length; });
+  if(n) out.push(["개수 총합계","","","","","","",n,"","",""]);
+  return out.map(function(r){ return r.map(function(c){ return String(c).replace(/,/g,""); }); });
+}
+$("copyBtn").addEventListener("click",function(){
+  var text=rows().map(function(r){ return r.join("\t"); }).join("\n");
+  navigator.clipboard.writeText(text).then(function(){ $("repStatus").textContent="표를 복사했습니다. 엑셀에 붙여넣으세요."; },function(){ $("repStatus").textContent="복사가 막혀 있습니다. CSV 저장을 이용하세요."; }); });
+var claude=window.claude, AI=null, AIimg=null;
+if(claude&&claude.use){
+  claude.use("downloads").then(function(dl){ if(!dl) return; var b=$("csvBtn"); b.hidden=false;
+    b.addEventListener("click",function(){
+      var csv="﻿"+rows().map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(","); }).join("\r\n");
+      dl.save({ filename:"물량산출.csv", data:csv }).then(function(){ $("repStatus").textContent="CSV를 저장했습니다."; },
+        function(e){ $("repStatus").textContent=e&&e.code==="declined"?"저장을 취소했습니다.":"이 화면에서는 저장할 수 없습니다. 표 복사를 이용하세요."; }); });
+    var ib=$("imgBtn"); ib.hidden=false;
+    ib.addEventListener("click",function(){ if(!S.photo){ $("repStatus").textContent="저장할 사진이 없습니다."; return; } var ed=S.editing; S.editing=false; render(); S.editing=ed;
+      cv.toBlob(function(blob){ dl.save({ filename:"물량산출_근거사진.jpg", data:blob }).then(function(){ $("repStatus").textContent="측정 표시가 들어간 근거 사진을 저장했습니다."; },
+        function(e){ $("repStatus").textContent=e&&e.code==="declined"?"저장을 취소했습니다.":"이 화면에서는 사진을 저장할 수 없습니다."; }); },"image/jpeg",0.9); }); });
+  claude.use("sample").then(function(sample){ if(!sample) return; AI=sample; $("whatRow").hidden=S.cntMode!=="auto"; try{ sample.limits().then(function(l){ AIimg=!!(l&&l.images); },function(){ AIimg=false; }); }catch(_){ AIimg=false; } var b=$("aiBtn"); b.hidden=false;
+    b.addEventListener("click",function(){
+      numberItems();
+      var regs=S.items.filter(function(it){ return kindOf(it)==="area"; });
+      if(!regs.length){ $("status").textContent="먼저 면적·부피에서 범위를 하나 이상 잡으세요."; return; }
+      b.disabled=true; $("status").textContent="AI가 사진을 보고 있습니다…";
+      cv.toBlob(function(blob){
+        var prompt="건축 시공 현장 사진이다. 색 윤곽선과 번호 라벨로 표시된 면적 영역 "+regs.map(function(r){ return r.no; }).join(", ")+"번이 각각 어떤 부재인지 판별하라. member는 반드시 다음 중 하나: "+MEMBERS.join(", ")+". 설명 없이 JSON 배열만 출력: "+'[{"no":1,"member":"벽","material":"콘크리트","note":"15자 이내 근거"}]';
+        sample.json(prompt,{ images:[blob] }).then(function(arr){
+          var n=0; (Array.isArray(arr)?arr:[]).forEach(function(r){ var it=regs.filter(function(x){ return x.no===+r.no; })[0];
+            if(it&&MEMBERS.indexOf(r.member)>=0){ it.member=r.member; it.note=[r.material,r.note].filter(Boolean).join(", ").slice(0,40); n++; } });
+          list(); $("status").textContent=n?n+"개 범위를 판별했습니다. 확인하고 필요하면 고치세요.":"판별 결과를 읽지 못했습니다. 다시 눌러 주세요.";
+        },function(e){ var c=e&&e.code;
+          if(c==="not_granted"){ b.hidden=true; $("status").textContent="AI 판별을 허용하지 않아 수동으로 진행합니다."; }
+          else $("status").textContent=c==="rate_limited"?"요청이 많습니다. 잠시 뒤 다시 눌러 주세요.":c==="images_unavailable"?"이 화면에서는 사진을 AI에 보낼 수 없습니다.":"AI 판별에 실패했습니다. 다시 눌러 주세요.";
+        }).then(function(){ b.disabled=false; });
+      },"image/jpeg",0.85); }); });
+}
+
+/* =========================================================
+   실제 현장 사진 샘플 (좌표는 폭 720 기준으로 적고 K배)
+   ========================================================= */
+var SAMPLES={
+  barrier:{ src:"samples/site-barrier.jpg", tag:"실제 현장 사진 · 워터 배리어", run:function(K){
+    var g=activeGroup(true); g.name="워터 배리어"; g.thr=0.65;
+    [[233,247,18,13],[320,247,17,13],[505,247,18,13]].forEach(function(b){ addExample(g,{x:b[0]*K,y:b[1]*K,w:b[2]*K,h:b[3]*K}); });
+    g.adds.push({x:564*K,y:255*K,r:6.5*K});
+    setFn("count"); setCntMode("edit"); hint("‘비슷한 것’ 예시 상자 3개로 7개를 찾고, 빠진 1개(8번)는 눌러서 추가한 결과입니다. 번호를 누르면 빠지고, 빈 곳을 누르면 추가됩니다."); } },
+  cone:{ src:"samples/site-cone.jpg", tag:"실제 현장 사진 · 라바콘", run:function(K){
+    var g=activeGroup(true); g.name="라바콘"; g.thr=0.60; $("thr").value=60; $("thrV").textContent="0.60";
+    addExample(g,{x:313*K,y:284*K,w:9*K,h:16*K});
+    g.hits.filter(function(h){ return h.x/K>640&&h.y/K<240; }).forEach(function(bad){ g.removes.push({x:bad.x,y:bad.y}); g.hits.splice(g.hits.indexOf(bad),1); });
+    setFn("count"); setCntMode("edit"); hint("예시 1개로 세고, 가설벽을 라바콘으로 잘못 잡은 3개를 눌러 뺀 결과입니다. 멀리 있는 작은 라바콘은 눌러서 추가하세요."); } },
+  earth:{ src:"samples/site-earth.jpg", tag:"실제 현장 사진 · 바닥 치수는 가정값", run:function(K){
+    var c=planeCal([[262,300],[560,286],[648,352],[196,372]].map(function(a){ return {x:a[0]*K,y:a[1]*K}; }),20,8); c.assumed=true; setCal(c);
+    S.items.push({ id:++S.seq, type:"poly", kind:"earth", color:nextColor(), view:"plan", depths:"2.5, 2.8, 3.0", slope:0.5, edge:"top", len:10, soil:"보통토사", L:1.25, C:0.88, truck:"15",
+      pts:[[252,238],[300,231],[380,224],[470,220],[505,246],[420,268],[330,272],[288,262]].map(function(a){ return {x:a[0]*K,y:a[1]*K}; }) });
+    S.earthView="plan"; setFn("earth"); hint("굴착 구역을 다각형으로 그린 시연입니다. 바닥 기준(점선 사각형)은 가정한 20×8 m라 수치는 실제 물량이 아닙니다."); } }
+};
+function sampleButtons(k){ ["barrier","cone","earth"].forEach(function(s){ $("sm-"+s).setAttribute("aria-pressed",String(s===k)); }); }
+function loadSample(k,quiet){
+  var s=SAMPLES[k], img=new Image(); $("status").textContent="샘플 사진을 여는 중…";
+  img.onload=function(){ loadImage(img,s.tag); $("status").textContent=""; s.run(S.W/720); sampleButtons(k); refresh();
+    if(!quiet) try{ $("stageWrap").scrollIntoView({block:"nearest",behavior:"smooth"}); }catch(_){} };
+  img.onerror=function(){ $("status").textContent="샘플 사진을 불러오지 못했습니다."; };
+  img.src=s.src;
+}
+["barrier","cone","earth"].forEach(function(k){ $("sm-"+k).addEventListener("click",function(){ loadSample(k); }); });
+window.addEventListener("resize",function(){ render(); });
+
+/* ---------- 화면: AR 실측 · 사진 물량 · 산출 내역 ---------- */
+function setView(v){
+  S.view=v; ["ar","photo","report"].forEach(function(k){ $("v-"+k).setAttribute("aria-selected",String(k===v)); $("view-"+k).hidden=k!==v; });
+  if(v==="photo") render(); if(v==="report") list();
+}
+function report(sm){
+  $("repSummary").innerHTML=sm.map(function(x){ return '<div class="sum"><dt>'+x[0]+'</dt><dd>'+x[1]+(x[2]?'<small>'+x[2]+'</small>':'')+'</dd></div>'; }).join("");
+  var r=rows();
+  if(r.length<=1){ $("repTable").innerHTML='<p class="empty">아직 산출한 항목이 없습니다. ‘사진 물량’에서 세거나 재면 여기에 표로 모입니다.</p>'; $("repImgWrap").hidden=true; return; }
+  var html='<table><thead><tr>'+r[0].map(function(h){ return '<th>'+esc(h)+'</th>'; }).join("")+'</tr></thead><tbody>';
+  r.slice(1).forEach(function(row){ html+='<tr'+(/총합계|합계/.test(row[0])?' class="tot"':'')+'>'+row.map(function(c){ return '<td>'+esc(c)+'</td>'; }).join("")+'</tr>'; });
+  $("repTable").innerHTML=html+'</tbody></table>';
+  if(S.photo){ var ed=S.editing; S.editing=false; render(); S.editing=ed; try{ $("repImg").src=cv.toDataURL("image/jpeg",0.82); $("repImgWrap").hidden=false; }catch(_){ $("repImgWrap").hidden=true; } }
+}
+$("v-ar").addEventListener("click",function(){ setView("ar"); });
+$("v-photo").addEventListener("click",function(){ setView("photo"); });
+$("v-report").addEventListener("click",function(){ setView("report"); });
+$("toReport").addEventListener("click",function(){ setView("report"); try{ window.scrollTo({top:0,behavior:"smooth"}); }catch(_){} });
+$("goPhotoLen").addEventListener("click",function(){ setView("photo"); setFn("length"); });
+$("chainBtn").addEventListener("click",function(){ S.chain=!S.chain; this.setAttribute("aria-pressed",String(S.chain)); if(!S.chain){ S.chainColor=null; } hint(S.chain?"연속 측정: 첫 점부터 차례로 누르면 구간이 이어집니다. 끝내려면 Esc나 ‘그리던 것 취소’.":modeHint()); });
+$("undoBtn").addEventListener("click",undo);
+$("redoBtn").addEventListener("click",redo);
+$("editBtn").addEventListener("click",function(){ if(!S.photo) return; setEditing(!S.editing); });
+$("editDone").addEventListener("click",function(){ setEditing(false); });
+$("editDel").addEventListener("click",deleteSel);
+$("cancelDraw").addEventListener("click",cancelDraw);
+$("cancelPoly").addEventListener("click",cancelDraw);
+$("aiCancel").addEventListener("click",cancelAI);
+document.addEventListener("keydown",function(e){
+  var t=e.target, typing=t&&(t.tagName==="INPUT"||t.tagName==="SELECT"||t.tagName==="TEXTAREA");
+  if((e.ctrlKey||e.metaKey)&&!typing&&(e.key==="z"||e.key==="Z")){ e.preventDefault(); if(e.shiftKey) redo(); else undo(); return; }
+  if((e.ctrlKey||e.metaKey)&&!typing&&(e.key==="y"||e.key==="Y")){ e.preventDefault(); redo(); return; }
+  if(e.key==="Escape"){ if(S.editing&&selH){ selH=null; editPanel(); render(); } else if(busyRegions().length&&!inProgress()) cancelAI(); else cancelDraw(); return; }
+  if((e.key==="Delete"||e.key==="Backspace")&&S.editing&&selH&&!typing){ e.preventDefault(); deleteSel(); }
+});
+
+setFn("count"); hint(modeHint());
+loadSample("barrier",true);
+window.__qto={ setView:setView, view:function(){ return S.view||"photo"; }, rows:rows, inProgress:inProgress, render:render, canvas:function(){ return cv; }, localCount:localCount, undo:undo, redo:redo, setEditing:setEditing, cancelDraw:cancelDraw, deleteSel:deleteSel, UNDO:function(){ return UNDO.length; }, REDO:function(){ return REDO.length; }, S:S, earth:earthCalc, loadImage:loadImage, loadSample:loadSample, regionQ:regionQ, polyQ:polyQ, planeCal:planeCal, setCal:setCal, apply:apply, setFn:setFn, setMode:setMode, setCalMode:setCalMode, setCntMode:setCntMode, refresh:refresh, addExample:addExample, activeGroup:activeGroup, countPts:countPts, addRegion:addRegion };
+})();
+</script>

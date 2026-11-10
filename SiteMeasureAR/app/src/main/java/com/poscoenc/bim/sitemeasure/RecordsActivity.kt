@@ -38,15 +38,19 @@ class RecordsActivity : AppCompatActivity() {
         super.onResume()
         records = RecordStore.all(this)
         val rows = records.map {
-            val v = if (it.unit == "m") String.format(Locale.US, "%.3f m", it.value) else it.value.toInt().toString() + " 개"
+            val v = when (it.unit) {
+                "개" -> it.value.toInt().toString() + " 개"
+                "m" -> String.format(Locale.US, "%.3f m", it.value)
+                else -> String.format(Locale.US, "%.2f ", it.value) + it.unit
+            }
             RecordStore.fmtTime(it.time) + "\n" + it.type + " · " + it.label + " · " + v + "\n" + it.detail
         }
         findViewById<ListView>(R.id.list).adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, rows)
         val n = records.size
         val dist = records.count { it.type == "거리" }
-        val cnt = records.filter { it.type == "개수" }.sumOf { it.value.toInt() }
+        val cnt = records.filter { it.unit == "개" }.sumOf { it.value.toInt() }
         findViewById<TextView>(R.id.summary).text =
-            if (n == 0) "저장한 내역이 없습니다. AR 실측이나 강재 개수 검토에서 ‘저장’을 누르세요."
-            else "모두 " + n + "건 · 거리 " + dist + "건 · 개수 합계 " + cnt + "개 · 항목을 누르면 근거 사진이 열립니다."
+            if (n == 0) "저장한 내역이 없습니다. AR 실측의 ‘저장’이나 사진 물량 산출 내역의 ‘산출 내역에 저장’을 누르세요."
+            else "모두 " + n + "건 · AR 거리 " + dist + "건 · 개수 합계 " + cnt + "개 · 항목을 누르면 근거 사진이 열립니다."
     }
 }

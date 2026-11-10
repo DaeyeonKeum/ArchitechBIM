@@ -2,9 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- 화면 글꼴과 (설정한 경우) AI 자동 세기에만 쓴다 -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- ARCore 지원 기기에서만 설치되도록 -->
-    <uses-feature android:name="android.hardware.camera.ar" android:required="true" />
+    <!-- 사진 물량은 모든 기기에서, AR 실측은 ARCore 지원 기기에서만 -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.ar" android:required="false" />
     <uses-feature android:glEsVersion="0x00020000" android:required="true" />
 
     <application
@@ -15,12 +18,14 @@
         android:supportsRtl="false"
         android:theme="@style/Theme.SiteMeasure">
 
-        <!-- ARCore 필수 앱: 설치 시 Google Play 서비스(AR) 확인 -->
-        <meta-data android:name="com.google.ar.core" android:value="required" />
+        <!-- ARCore 선택 사용: AR 실측을 처음 열 때 Google Play AR 서비스 설치를 요청한다 -->
+        <meta-data android:name="com.google.ar.core" android:value="optional" />
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:windowSoftInputMode="adjustResize"
             android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -32,11 +37,6 @@
             android:name=".MeasureActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize"
-            android:screenOrientation="portrait" />
-
-        <activity
-            android:name=".CountReviewActivity"
-            android:exported="false"
             android:screenOrientation="portrait" />
 
         <activity

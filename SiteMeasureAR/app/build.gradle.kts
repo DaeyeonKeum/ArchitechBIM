@@ -11,8 +11,8 @@ android {
         applicationId = "com.poscoenc.bim.sitemeasure"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.9"
     }
 
     // 시험용 고정 서명: 새 빌드를 받아도 지우지 않고 덮어 설치할 수 있게 한다 (정식 배포용 키 아님)
@@ -46,4 +46,6 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.activity:activity-ktx:1.9.2")
     implementation("com.google.android.material:material:1.12.0")
+    // 사진 물량 화면(웹 시제품 ver 0.9)을 앱 안에서 연다
+    implementation("androidx.webkit:webkit:1.11.0")
 }

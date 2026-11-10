@@ -1,0 +1,4 @@
+/* 설치형 앱 보정 */
+.in-app .badge-st.ok{background:#e6f6ec;color:#0f7a3d}
+.in-app .app-ai{align-items:center;justify-content:space-between;margin-top:14px;padding-top:14px;border-top:1px solid var(--line,#e3e6ea)}
+.in-app .app-ai p{margin:0;font-size:13.5px;color:var(--muted,#5b6470);flex:1 1 200px}

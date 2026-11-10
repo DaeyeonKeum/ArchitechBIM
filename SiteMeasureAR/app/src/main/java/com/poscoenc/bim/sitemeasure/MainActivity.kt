@@ -131,8 +131,9 @@ class MainActivity : AppCompatActivity() {
             val dir = File(cacheDir, "shots").apply { mkdirs() }
             dir.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 86_400_000 }?.forEach { it.delete() }
             val f = File(dir, "shot_" + System.currentTimeMillis() + ".jpg")
-            shotUri = FileProvider.getUriForFile(this, "$packageName.files", f)
-            takePhoto.launch(shotUri)
+            val uri = FileProvider.getUriForFile(this, "$packageName.files", f)
+            shotUri = uri
+            takePhoto.launch(uri)
         } catch (e: Exception) {
             Toast.makeText(this, "카메라를 열 수 없습니다. 앨범에서 고르세요.", Toast.LENGTH_LONG).show()
             deliver(null)

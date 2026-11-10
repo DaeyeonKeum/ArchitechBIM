@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">현장 포토 물량 AR</string>
-    <string name="org_line">포스코이앤씨 건축BIM섹션 · ver 0.1 (Android 시제품)</string>
+    <string name="app_name">AI 사진분석 물량</string>
+    <string name="org_line">건축BIM섹션 · ver 0.9</string>
     <string name="mode_ar">AR 실측</string>
     <string name="mode_ar_desc">기준 치수 없이 두 점 거리 측정</string>
     <string name="mode_count">강재 개수 검토</string>

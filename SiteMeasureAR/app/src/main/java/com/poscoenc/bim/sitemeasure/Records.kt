@@ -74,7 +74,7 @@ object RecordStore {
         return Intent(Intent.ACTION_SEND).apply {
             type = "text/csv"
             putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, "현장 포토 물량 산출 내역")
+            putExtra(Intent.EXTRA_SUBJECT, "AI 사진분석 물량 산출 내역")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
     }

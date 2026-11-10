@@ -40,7 +40,7 @@
 - 최소 Android 7.0 (API 24), 대상 API 34
 - ARCore 1.44.0, Kotlin 1.9.24, Android Gradle Plugin 8.5.2, Gradle 8.7
 - 지원 기기 목록: https://developers.google.com/ar/devices
-- 이 소스는 작성 환경에 Android SDK가 없어 **빌드해 보지 못했습니다.** 첫 동기화 때 나는 오류는 대부분 버전 맞춤으로 해결됩니다.
+- GitHub Actions에서 자동 빌드됩니다. 최신 APK: 저장소 Releases의 `site-measure-ar-build-*` 항목
 
 ## 현장 검증 방법 (권장)
 1. 기기별로 길이를 아는 구간 5곳(0.5 m, 1 m, 2 m, 3 m, 5 m)을 줄자로 표시합니다.

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/bg">
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="20dp">
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <ImageView android:layout_width="96dp" android:layout_height="38dp"
+                android:src="@drawable/poscoenc_logo" android:scaleType="fitStart"
+                android:contentDescription="포스코이앤씨" />
+            <LinearLayout android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                android:orientation="vertical" android:layout_marginStart="12dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="@string/app_name" android:textSize="20sp" android:textStyle="bold" android:textColor="@color/ink" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="@string/org_line" android:textSize="12sp" android:textColor="@color/muted" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/cardAr" style="@style/Card">
+            <TextView style="@style/CardTitle" android:text="@string/mode_ar" />
+            <TextView style="@style/CardDesc" android:text="@string/mode_ar_desc" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/cardCount" style="@style/Card">
+            <TextView style="@style/CardTitle" android:text="@string/mode_count" />
+            <TextView style="@style/CardDesc" android:text="@string/mode_count_desc" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/cardRecords" style="@style/Card">
+            <TextView style="@style/CardTitle" android:text="@string/mode_records" />
+            <TextView style="@style/CardDesc" android:text="@string/mode_records_desc" />
+        </LinearLayout>
+
+        <TextView android:id="@+id/arStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="16dp" android:textSize="13sp" android:textColor="@color/muted" />
+    </LinearLayout>
+</ScrollView>

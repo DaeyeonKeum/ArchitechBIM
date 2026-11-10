@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="#000000">
+
+    <android.opengl.GLSurfaceView
+        android:id="@+id/surface"
+        android:layout_width="match_parent" android:layout_height="match_parent" />
+
+    <com.poscoenc.bim.sitemeasure.OverlayView
+        android:id="@+id/overlay"
+        android:layout_width="match_parent" android:layout_height="match_parent" />
+
+    <TextView
+        android:id="@+id/status"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_gravity="top" android:layout_margin="16dp"
+        android:background="@drawable/pill_dark" android:padding="12dp"
+        android:textColor="#FFFFFF" android:textSize="14sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_gravity="bottom" android:orientation="vertical"
+        android:background="#E6FFFFFF" android:padding="12dp">
+
+        <TextView
+            android:id="@+id/result"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center" android:textColor="@color/ink"
+            android:textSize="28sp" android:textStyle="bold" android:fontFamily="monospace"
+            android:text="– m" />
+        <TextView
+            android:id="@+id/resultSub"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center" android:textColor="@color/muted" android:textSize="12sp" />
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="8dp">
+            <Button android:id="@+id/btnUndo" style="@style/BtnOutline" android:text="@string/btn_undo" />
+            <Button android:id="@+id/btnAdd" style="@style/Btn" android:layout_weight="1.6" android:text="@string/btn_add_point" />
+            <Button android:id="@+id/btnSave" style="@style/BtnOutline" android:text="@string/btn_save" />
+        </LinearLayout>
+        <Button android:id="@+id/btnReset" style="@style/BtnOutline"
+            android:layout_width="match_parent" android:layout_height="48dp" android:layout_weight="0"
+            android:layout_marginTop="4dp" android:text="@string/btn_reset" />
+    </LinearLayout>
+</FrameLayout>

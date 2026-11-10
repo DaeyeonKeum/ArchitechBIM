@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">현장 포토 물량 AR</string>
+    <string name="org_line">포스코이앤씨 건축BIM섹션 · ver 0.1 (Android 시제품)</string>
+    <string name="mode_ar">AR 실측</string>
+    <string name="mode_ar_desc">기준 치수 없이 두 점 거리 측정</string>
+    <string name="mode_count">강재 개수 검토</string>
+    <string name="mode_count_desc">사진에서 개수 표시·누락·오탐 수정</string>
+    <string name="mode_records">산출 내역</string>
+    <string name="mode_records_desc">사진·측정점·근거 보기, CSV 내보내기</string>
+    <string name="btn_add_point">점 찍기</string>
+    <string name="btn_undo">되돌리기</string>
+    <string name="btn_reset">새로 재기</string>
+    <string name="btn_save">저장</string>
+    <string name="btn_pick">사진 선택</string>
+    <string name="btn_auto">자동 검출</string>
+    <string name="btn_export">CSV 내보내기</string>
+    <string name="hint_scan">휴대폰을 천천히 좌우로 움직여 바닥과 벽을 인식시키세요.</string>
+    <string name="hint_first">가운데 조준점을 시작점에 맞추고 ‘점 찍기’를 누르세요.</string>
+    <string name="hint_second">끝점에 조준점을 맞추고 ‘점 찍기’를 누르세요.</string>
+    <string name="camera_needed">거리 측정에는 카메라 권한이 필요합니다.</string>
+</resources>

@@ -11,7 +11,7 @@ android {
         applicationId = "com.poscoenc.bim.sitemeasure"
         minSdk = 24
         targetSdk = 34
-        versionCode = 4
+        versionCode = 5
         versionName = "0.9"
     }
 

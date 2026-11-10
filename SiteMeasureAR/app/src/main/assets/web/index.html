@@ -671,6 +671,10 @@ function grow(sx,sy,tol,occ){
       var nb=mask[i4-1]?i4-1:mask[i4+1]?i4+1:mask[i4-W]?i4-W:mask[i4+W]?i4+W:-1; if(nb<0) continue;
       var q4=i4*4, p4=nb*4, a4=d[q4]-d[p4], b4=d[q4+1]-d[p4+1], c4=d[q4+2]-d[p4+2]; if(a4*a4+b4*b4+c4*c4<=tl*4) add.push(i4); }
     add.forEach(function(i){ mask[i]=1; var xx=i%W, yy=(i-xx)/W; if(xx<x0)x0=xx; if(xx>x1)x1=xx; if(yy<y0)y0=yy; if(yy>y1)y1=yy; }); }
+  return faceFinish(mask,x0,y0,x1,y1,occ);
+}
+function faceFinish(mask,x0,y0,x1,y1,occ){
+  var W=S.W,H=S.H,N=W*H;
   var area=0; for (var k=0;k<N;k++) area+=mask[k];
   var bw=x1-x0+3,bh=y1-y0+3,lab=new Uint8Array(bw*bh),q2=new Int32Array(bw*bh);
   function at(lx,ly){ var gx=lx+x0-1,gy=ly+y0-1; return (gx<0||gy<0||gx>=W||gy>=H)?0:mask[gy*W+gx]; }
@@ -691,6 +695,62 @@ function grow(sx,sy,tol,occ){
     if(xx===0||!mask[m-1]) per++; if(xx===W-1||!mask[m+1]) per++; if(yy===0||!mask[m-W]) per++; if(yy===H-1||!mask[m+W]) per++; }
   return { mask:mask, holes:holes, holeList:holeList, area:area, per:per, bb:[x0,y0,x1,y1], cx:cx/area, cy:cy/area };
 }
+/* ---------- 질감 있는 면(흙·자갈·콘크리트 바닥 등)용: 반 해상도에서 흐리게 한 색으로 넓혀 잡는다 ----------
+   임계값을 조금씩 키우며 넓히다가, 넓이가 갑자기 뛰면(옆 면으로 새면) 그 직전 값을 쓴다. */
+var TX=null;
+function boxBlur(A,w,h,r){ var out=new Float32Array(A.length), tmp=new Float32Array(A.length);
+  for (var c=0;c<3;c++){
+    for (var y=0;y<h;y++){ var s=0,n=0; for (var x=-r;x<w+r;x++){ if(x+r<w&&x+r>=0){ s+=A[(y*w+x+r)*3+c]; n++; } if(x-r-1>=0){ s-=A[(y*w+x-r-1)*3+c]; n--; } if(x>=0&&x<w) tmp[(y*w+x)*3+c]=s/n; } }
+    for (var x2=0;x2<w;x2++){ var s2=0,n2=0; for (var y2=-r;y2<h+r;y2++){ if(y2+r<h&&y2+r>=0){ s2+=tmp[((y2+r)*w+x2)*3+c]; n2++; } if(y2-r-1>=0){ s2-=tmp[((y2-r-1)*w+x2)*3+c]; n2--; } if(y2>=0&&y2<h) out[(y2*w+x2)*3+c]=s2/n2; } } }
+  return out; }
+function texPrep(){
+  if(TX&&TX.src===S.photo) return TX;
+  var k=Math.min(1,640/Math.max(S.W,S.H)), w=Math.max(8,Math.round(S.W*k)), h=Math.max(8,Math.round(S.H*k)), c=document.createElement("canvas"); c.width=w; c.height=h;
+  var g=c.getContext("2d"); g.imageSmoothingQuality="high"; g.drawImage(S.photo,0,0,w,h);
+  var d=g.getImageData(0,0,w,h).data, n=w*h, L=new Float32Array(n*3);
+  for (var i=0;i<n;i++){ var l=toLab(d[i*4],d[i*4+1],d[i*4+2]); L[i*3]=l[0]; L[i*3+1]=l[1]; L[i*3+2]=l[2]; }
+  var B=boxBlur(boxBlur(L,w,h,2),w,h,2), G=new Float32Array(n), smp=[];
+  for (var y=1;y<h-1;y++) for (var x=1;x<w-1;x++){ var q=y*w+x;
+    var gx=B[(q+1)*3]-B[(q-1)*3], gy=B[(q+w)*3]-B[(q-w)*3]; G[q]=Math.sqrt(gx*gx+gy*gy); if((q&3)===0) smp.push(G[q]); }
+  smp.sort(function(a,b){ return a-b; });
+  TX={ src:S.photo, k:k, w:w, h:h, B:B, G:G, eHi:Math.max(6,smp[Math.floor(smp.length*0.96)]||10) }; return TX; }
+function grow2(sx,sy,tol,occ){
+  var T=texPrep(), w=T.w, h=T.h, k=T.k, B=T.B, G=T.G, n=w*h;
+  var x=Math.min(w-1,Math.max(0,Math.round(sx*k))), y=Math.min(h-1,Math.max(0,Math.round(sy*k))), s0=y*w+x;
+  var oc=null; if(occ){ oc=new Uint8Array(n); for (var yy=0;yy<h;yy++) for (var xx=0;xx<w;xx++) oc[yy*w+xx]=occ[Math.min(S.H-1,Math.floor((yy+.5)/k))*S.W+Math.min(S.W-1,Math.floor((xx+.5)/k))]; if(oc[s0]) return null; }
+  var m=[0,0,0], cn=0; for (var dy=-2;dy<=2;dy++) for (var dx=-2;dx<=2;dx++){ var X=x+dx,Y=y+dy; if(X<0||Y<0||X>=w||Y>=h) continue; var q=(Y*w+X)*3; m[0]+=B[q]; m[1]+=B[q+1]; m[2]+=B[q+2]; cn++; }
+  m=[m[0]/cn,m[1]/cn,m[2]/cn];
+  var eT=T.eHi*(0.7+tol/100), st=new Int32Array(n);
+  function flood(t){ var M=new Uint8Array(n), sp=0, A=0, t2=t*t, nb2=(t*0.6)*(t*0.6); M[s0]=1; st[sp++]=s0;
+    while(sp){ var i=st[--sp], px=i%w; A++;
+      for (var e=0;e<4;e++){ var j=e===0?(px>0?i-1:-1):e===1?(px<w-1?i+1:-1):e===2?(i>=w?i-w:-1):(i<n-w?i+w:-1); if(j<0||M[j]) continue;
+        if(oc&&oc[j]) continue; if(G[j]>=eT) continue;
+        var a=B[j*3]-m[0], b=B[j*3+1]-m[1], c=B[j*3+2]-m[2]; if(a*a+b*b+c*c>t2) continue;
+        a=B[j*3]-B[i*3]; b=B[j*3+1]-B[i*3+1]; c=B[j*3+2]-B[i*3+2]; if(a*a+b*b+c*c>nb2) continue;
+        M[j]=1; st[sp++]=j; } }
+    return { M:M, A:A }; }
+  var f=tol/30, best=null, prevA=0;
+  [5,7,9,12,15,19,24,30].forEach(function(t0){ if(best&&best.stop) return; var r=flood(t0*f);
+    if(r.A>n*0.6||(prevA>n*0.003&&r.A>2.4*prevA)){ if(best) best.stop=true; return; }
+    best={ M:r.M, A:r.A }; prevA=r.A; });
+  if(!best||best.A<20) return null;
+  /* 테두리 다듬기: 닫기(틈 메우기) → 열기(가는 돌기 제거) → 누른 곳과 이어진 덩어리만 */
+  function morph(A,dil){ var O=new Uint8Array(n); for (var yy=0;yy<h;yy++) for (var xx=0;xx<w;xx++){ var v=dil?0:1;
+      for (var a=-1;a<=1;a++) for (var b=-1;b<=1;b++){ var X=xx+b,Y=yy+a, q=(X<0||Y<0||X>=w||Y>=h)?0:A[Y*w+X]; if(dil&&q) v=1; if(!dil&&!q) v=0; }
+      O[yy*w+xx]=v; } return O; }
+  var Mm=best.M; Mm=morph(morph(Mm,true),true); Mm=morph(morph(Mm,false),false); Mm=morph(morph(Mm,false),false); Mm=morph(morph(Mm,true),true);
+  if(oc) for (var z=0;z<n;z++) if(oc[z]) Mm[z]=0;
+  if(!Mm[s0]){ var bd=1e9; for (var z2=0;z2<n;z2++) if(Mm[z2]){ var dd=Math.abs(z2%w-x)+Math.abs(Math.floor(z2/w)-y); if(dd<bd){ bd=dd; s0=z2; } } if(bd>6) return null; }
+  var keep=new Uint8Array(n), sp2=0; keep[s0]=1; st[sp2++]=s0;
+  while(sp2){ var i2=st[--sp2], p2=i2%w; [p2>0?i2-1:-1,p2<w-1?i2+1:-1,i2>=w?i2-w:-1,i2<n-w?i2+w:-1].forEach(function(j){ if(j>=0&&Mm[j]&&!keep[j]){ keep[j]=1; st[sp2++]=j; } }); }
+  /* 쌍선형 표본으로 키워 계단을 줄인다 */
+  var W=S.W, H=S.H, M2=new Uint8Array(W*H), x0=W, y0=H, x1=0, y1=0;
+  function kv(X,Y){ X=Math.min(w-1,Math.max(0,X)); Y=Math.min(h-1,Math.max(0,Y)); return keep[Y*w+X]; }
+  for (var Y2=0;Y2<H;Y2++){ var fy=(Y2+.5)*k-.5, yl=Math.floor(fy), ty=fy-yl; for (var X2=0;X2<W;X2++){ var fx=(X2+.5)*k-.5, xl=Math.floor(fx), tx=fx-xl;
+    var v=(kv(xl,yl)*(1-tx)+kv(xl+1,yl)*tx)*(1-ty)+(kv(xl,yl+1)*(1-tx)+kv(xl+1,yl+1)*tx)*ty; if(v<0.5) continue; var gi=Y2*W+X2; if(occ&&occ[gi]) continue;
+    M2[gi]=1; if(X2<x0)x0=X2; if(X2>x1)x1=X2; if(Y2<y0)y0=Y2; if(Y2>y1)y1=Y2; } }
+  if(x1<x0) return null;
+  return faceFinish(M2,x0,y0,x1,y1,occ); }
 /* ---------- 화소 영역 → 꼭지점 다각형 (경계 추적 + 단순화) ---------- */
 function traceB(at,sx,sy){
   var dx=[1,1,0,-1,-1,-1,0,1], dy=[0,-1,-1,-1,0,1,1,1], out=[[sx,sy]], x=sx, y=sy, d=7, first=null, n=0;
@@ -738,13 +798,15 @@ function faceAt(p){ var hit=null; S.items.forEach(function(it){ if(it.type==="po
 function addFace(x,y,tol,keep){
   var occ=rasterAreas(keep||null,1), W=S.W, sx=Math.round(x), sy=Math.round(y);
   if(occ[sy*W+sx]){ return { already:faceAt({x:x,y:y}) }; }
-  var r=grow(x,y,tol,occ);
+  var r=grow(x,y,tol,occ), tex=false;
+  /* 경계선 기준으로 너무 작게 잡히면(질감 있는 바닥·흙) 색 기준으로 다시 넓혀 본다 */
+  if(r.area<S.W*S.H*0.015){ var r2=grow2(x,y,tol,occ); if(r2&&r2.area>Math.max(60,r.area*1.5)&&r2.area<S.W*S.H*0.6){ r=r2; tex=true; } }
   if(r.area<60) return { small:true };
   var poly=faceToPoly(r); if(!poly) return { small:true };
   var it=keep||{ id:++S.seq, type:"poly", kind:"area", auto:true, member:"벽", thick:200, color:nextColor() };
   it.pts=poly.pts; it.holes=poly.holes; it.seed={x:x,y:y}; it.tol=tol; it.edited=false;
   if(!keep) S.items.push(it);
-  return { it:it, big:r.area>S.W*S.H*0.35 };
+  it.tex=tex; return { it:it, big:r.area>S.W*S.H*0.35, tex:tex };
 }
 function nextColor(){ return COLORS[S.items.length%COLORS.length]; }
 function addRegion(x,y,tol,keep){
@@ -1107,7 +1169,8 @@ function labels(){
 function totalBadge(T,has){
   var box=$("total"), show=false, n="", l="", c="#2f62f5";
   if(S.fn==="count"){ var g=activeGroup(false); if(g){ show=true; n=countPts(g).length; l=g.name; c=g.color; } }
-  else if(S.fn==="area"&&has.A){ show=true; n=f(T.A,1); l="m² 면적"; }
+  else if(S.fn==="area"&&has.A){ show=true; n=f(T.A,T.A<10?2:1); l="m² 면적"; }
+  else if(S.fn==="area"&&!S.cal&&S.items.some(function(i){ return kindOf(i)==="area"; })){ show=true; n="–"; l="m² · 기준 치수 필요"; c="#c2410c"; }
   else if(S.fn==="earth"&&has.E){ show=true; n=f(T.E,0); l="m³ 토공"; }
   else if(S.fn==="length"&&has.L){ show=true; n=f(T.L,2); l="m 길이"; }
   box.hidden=!show||!S.photo; $("totalN").textContent=n; $("totalL").textContent=l; $("totalDot").style.background=c;
@@ -1175,7 +1238,8 @@ function calUI(){
     $("calSteps").innerHTML=steps.map(function(t,i){ return '<li class="'+(i<cur?"done":i===cur?"now":"")+'"><span>'+t+'</span>'+(i===0?'<span class="n">'+Math.min(np,nn)+'/'+nn+'</span>':'')+'</li>'; }).join("");
     $("formLen").hidden=!L; $("formPlane").hidden=L; $("applyLen").disabled=!(ptsOk&&val); $("applyPlane").disabled=!(ptsOk&&val); $("calRedo").disabled=!np;
     tag=(L?"기준 길이 · ":"바닥 4점 · ")+(ptsOk?"아래에 실제 치수를 넣으세요":L?(np?"반대쪽 끝을 누르세요":"한쪽 끝을 누르세요"):(np+1)+"번째 모서리를 누르세요")+" ("+Math.min(np,nn)+"/"+nn+")";
-  } else if(m==="crop") tag=S.cropBox?"아래 ‘이 범위만 남기기’를 누르세요":"남길 범위를 끌어 감싸세요";
+  } else if(S.hand) tag="이동 켜짐 · 끌면 사진 이동·스크롤, 톡 누르면 측정";
+  else if(m==="crop") tag=S.cropBox?"아래 ‘이 범위만 남기기’를 누르세요":"남길 범위를 끌어 감싸세요";
   $("stepTag").textContent=tag; $("stepTag").hidden=!tag||!S.photo; $("sampleTag").hidden=!!tag||!$("sampleTag").textContent;
 }
 function startCal(k){ if(!S.photo) return; setMode("scale"); setCalMode(k);
@@ -1376,33 +1440,39 @@ function pinchMove(){ var a=ptList(), p=a[0], q=a[1], d=Math.hypot(p.x-q.x,p.y-q
     GES.zoom=true; GES.d0=d; GES.z0=V.z; GES.m0=vpRel(m.x,m.y); GES.x0=V.x; GES.y0=V.y; }
   var z2=Math.min(ZMAX,Math.max(1,GES.z0*d/GES.d0)), r=vpRel(m.x,m.y);
   V.x=r.x-(GES.m0.x-GES.x0)*z2/GES.z0; V.y=r.y-(GES.m0.y-GES.y0)*z2/GES.z0; V.z=z2; applyView(); GES.last=m; }
-function panMove(cx,cy){ var dx=cx-GES.last.x, dy=cy-GES.last.y, oy=V.y; GES.last={ x:cx, y:cy };
+function panMove(cx,cy){ var dx=cx-GES.last.x, dy=cy-GES.last.y, oy=V.y; GES.last={ x:cx, y:cy }; GES.far=Math.max(GES.far,Math.hypot(cx-GES.s.x,cy-GES.s.y)); if(GES.far<8) return;
   if(V.z>1.001){ V.x+=dx; V.y+=dy; applyView(); }
   var rest=dy-(V.y-oy); if(Math.abs(rest)>0.5) window.scrollBy(0,-rest); }
 vp.addEventListener("pointerdown",function(e){
   if(e.button>0||!S.photo) return; e.preventDefault(); try{ vp.setPointerCapture(e.pointerId); }catch(_){}
+  /* 첫 손가락이 닿으면 이전 손가락 기록을 비운다 (떼는 신호가 빠져 사진이 먹통이 되는 것 방지) */
+  if(e.isPrimary||e.pointerType==="mouse"){ PT={}; if(GES){ GES=null; vp.style.cursor=""; } }
   PT[e.pointerId]={ x:e.clientX, y:e.clientY }; NPT=Object.keys(PT).length;
   if(NPT===2){ startPinch(); return; } if(NPT>2||GES) return;
-  if(S.hand){ GES={ type:"pan", last:{ x:e.clientX, y:e.clientY } }; vp.style.cursor="grabbing"; return; }
+  if(S.hand){ GES={ type:"pan", last:{ x:e.clientX, y:e.clientY }, s:{ x:e.clientX, y:e.clientY }, far:0 }; vp.style.cursor="grabbing"; return; }
   if(S.editing){ editStart(toImg(e)); return; } aim={start:toImg(e)}; updateAim(e); });
 vp.addEventListener("pointermove",function(e){
   if(PT[e.pointerId]) PT[e.pointerId]={ x:e.clientX, y:e.clientY };
   if(GES){ if(GES.type==="pinch"&&NPT>=2) pinchMove(); else if(GES.type==="pan"&&PT[e.pointerId]) panMove(e.clientX,e.clientY); return; }
   if(S.editing){ if(drag) editMove(e); return; } if(aim) updateAim(e); });
 function ptEnd(e,cancel){ var had=!!PT[e.pointerId]; delete PT[e.pointerId]; NPT=Object.keys(PT).length;
-  if(GES){ if(!NPT){ GES=null; vp.style.cursor=""; } return; }   /* 두 손가락 뒤 남은 손가락은 찍지 않는다 */
+  if(GES){ var gt=GES; if(!NPT){ GES=null; vp.style.cursor=""; }
+    /* ‘이동’ 중이라도 끌지 않고 톡 누르면 측정으로 처리 */
+    if(gt.type==="pan"&&gt.far<8&&!NPT&&!cancel&&had){ if(S.editing){ editStart(toImg(e)); editEnd(e); } else { aim={start:toImg(e)}; updateAim(e); var ta=aim; aim=null; loupe.hidden=true; commit(ta); } }
+    return; }   /* 두 손가락 뒤 남은 손가락은 찍지 않는다 */
   if(!had) return;
   if(cancel){ if(drag&&drag.moved) undo(); drag=null; aim=null; loupe.hidden=true; render(); return; }
   if(S.editing){ editEnd(e); return; } if(!aim) return; updateAim(e); var a=aim; aim=null; loupe.hidden=true; commit(a); }
 vp.addEventListener("pointerup",function(e){ ptEnd(e,false); });
 vp.addEventListener("pointercancel",function(e){ ptEnd(e,true); });
+vp.addEventListener("lostpointercapture",function(e){ if(PT[e.pointerId]) ptEnd(e,true); });
 vp.addEventListener("wheel",function(e){ if(!S.photo||!(e.ctrlKey||e.metaKey)) return; e.preventDefault();
   var r=vpRel(e.clientX,e.clientY); zoomAt(V.z*Math.exp(-e.deltaY*0.008),r.x,r.y); },{ passive:false });
 $("zIn").addEventListener("click",function(){ zoomAt(V.z*1.6,V.vw/2,V.vh/2); });
 $("zOut").addEventListener("click",function(){ zoomAt(V.z/1.6,V.vw/2,V.vh/2); });
 $("zFit").addEventListener("click",function(){ V.z=1; applyView(); });
 $("handBtn").addEventListener("click",function(){ S.hand=!S.hand; this.setAttribute("aria-pressed",String(S.hand)); vp.classList.toggle("hand",S.hand);
-  hint(S.hand?"이동: 한 손가락으로 끌면 확대한 사진이 움직이고, 사진 끝에 닿으면 화면이 스크롤됩니다. 측정하려면 ‘이동’을 다시 누르세요.":modeHint()); });
+  hint(S.hand?"이동: 한 손가락으로 끌면 확대한 사진이 움직이고, 사진 끝에 닿으면 화면이 스크롤됩니다. 끌지 않고 톡 누르면 그대로 측정합니다.":modeHint()); calUI(); });
 if(window.ResizeObserver) new ResizeObserver(function(){ if(vp.clientWidth&&vp.clientWidth!==vpW) layoutView(true); }).observe(vp);
 
 function commit(a){
@@ -1412,9 +1482,11 @@ function commit(a){
       if(res.already){ numberItems(); hint("이미 잡은 면입니다 (면적 "+res.already.no+"). 경계를 고치려면 ✎ 수정에서 꼭지점을 끄세요."); }
       else hint("잡힌 면이 너무 작습니다. 인식 범위를 높이거나 면 가운데를 눌러 보세요."); refresh(); return; }
     var frac=Math.abs(sArea(res.it.pts))/(S.W*S.H);
-    if(frac<0.004){ hint("잡힌 면이 아주 작습니다 (사진의 "+(frac*100).toFixed(2)+"%). 원하는 면이 아니면 ↶로 되돌린 뒤 인식 범위를 높이거나, ‘다각형’으로 꼭지점을 찍으세요."); refresh(); return; }
+    if(frac<0.003&&!res.it.tex){ S.items.splice(S.items.indexOf(res.it),1); UNDO.pop(); undoBtns();
+      hint("이 자리는 경계선이 촘촘해 면을 잡지 못했습니다(사진의 "+(frac*100).toFixed(2)+"%). 면 가운데를 다시 누르거나, 인식 범위를 높이거나, ‘다각형’으로 꼭지점을 찍으세요."); refresh(); return; }
+    if(frac<0.01){ hint("잡힌 면이 작습니다 (사진의 "+(frac*100).toFixed(1)+"%). 원하는 면이 아니면 ↶로 되돌린 뒤 인식 범위를 높이거나, ‘다각형’으로 꼭지점을 찍으세요."); refresh(); return; }
     hint(res.big?"사진의 넓은 부분이 잡혔습니다. 원하는 범위보다 크면 인식 범위를 낮추거나, ✎ 수정에서 꼭지점을 끌어 고치세요.":
-      "경계선까지 면을 잡았습니다 (꼭지점 "+res.it.pts.length+"개). 경계가 틀리면 ✎ 수정에서 꼭지점을 끌어 고치세요."+(S.cal?"":" 수치는 기준 치수를 잡은 뒤 나옵니다."));
+      (res.tex?"질감이 있는 면이라 색이 비슷한 범위로 넓혀 잡았습니다 (꼭지점 ":"경계선까지 면을 잡았습니다 (꼭지점 ")+res.it.pts.length+"개). 경계가 틀리면 ✎ 수정에서 꼭지점을 끌어 고치세요."+(S.cal?"":" 수치는 기준 치수를 잡은 뒤 나옵니다."));
     refresh(); return; }
   if(m==="poly"||m==="earth"){
     if(S.draft.length>=3&&a.snap.target===S.draft[0]){ closeDraft(); return; }

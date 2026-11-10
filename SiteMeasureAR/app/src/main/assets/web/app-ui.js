@@ -55,6 +55,9 @@
   window.__appBack=function(){
     if(Q.view()!=="photo"){ Q.setView("photo"); return true; }
     if(Q.inProgress()){ Q.cancelDraw(); return true; }
+    if(Q.S.mode==="crop"){ Q.setFn(Q.S.fn); return true; }
+    if(Q.S.refPick){ Q.S.refPick=false; Q.refresh(); return true; }
+    if(Q.viewZoom&&Q.viewZoom()>1.01){ Q.fitView(); return true; }
     if(Q.S.editing){ Q.setEditing(false); return true; }
     return false;
   };

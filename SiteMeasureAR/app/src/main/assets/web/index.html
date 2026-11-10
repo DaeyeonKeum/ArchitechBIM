@@ -79,9 +79,17 @@ button:disabled{opacity:.45;cursor:default}
 .drop-t{font-size:17px;font-weight:700;margin:0}
 .drop-s{font-size:13.5px;color:var(--muted);margin:0;max-width:44ch}
 .drop-b{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px}
-.stage{position:relative;background:#0b0d10}
-#cv{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none}
-#loupe{position:absolute;top:10px;width:124px;height:124px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none}
+.stage{position:relative;background:#0b0d10;overflow:hidden}
+#vp{position:relative;overflow:hidden;touch-action:none;height:56vh;user-select:none;-webkit-user-select:none}
+#cv{position:absolute;left:0;top:0;display:block;transform-origin:0 0;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none}
+#vp.hand,#vp.hand #cv{cursor:grab}
+.zctl{display:flex;gap:4px;flex-wrap:nowrap}
+.zctl button{min-height:40px;min-width:40px;padding:0 9px;font-size:13px;gap:4px}
+.zctl .zl{font-family:var(--font-num);font-size:12.5px;min-width:54px}
+.zctl button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.pbar2{border-top:0;padding-top:0}
+.ptools{display:flex;gap:6px;flex-wrap:wrap}
+#loupe{position:absolute;top:58px;width:124px;height:124px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none}
 .total{position:absolute;left:10px;top:10px;pointer-events:none;display:flex;align-items:baseline;gap:8px;padding:6px 12px 6px 10px;border-radius:12px;background:rgba(255,255,255,.94);color:#0f172a;box-shadow:0 4px 14px rgba(0,0,0,.18)}
 .total .dot{width:10px;height:10px;border-radius:50%;align-self:center}
 .total .n{font-family:var(--font-num);font-weight:600;font-size:22px;line-height:1}
@@ -158,6 +166,10 @@ input[type=number],input[type=text],select{font:inherit;min-height:42px;padding:
 .thick input{width:74px}
 .q{font-family:var(--font-num);font-variant-numeric:tabular-nums;font-weight:600;text-align:right;white-space:nowrap;font-size:15px}
 .q small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+.calq{grid-column:2 / 4;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--muted);min-width:0;background:var(--warn-soft);padding:6px 8px;border-radius:8px}
+.calq select,.calq input{min-height:36px;padding:4px 8px;width:auto}
+.calq input{width:96px}
+.calq button{min-height:36px;padding:4px 10px;font-size:12.5px}
 .sub{grid-column:2 / 4;font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
 .sub .acts{display:flex;gap:6px}
 .sub button{min-height:32px;padding:2px 10px;font-size:12.5px;font-weight:500}
@@ -242,7 +254,7 @@ details.help ul{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:col
     </div>
     <div id="stageWrap" hidden>
       <div class="stage">
-        <canvas id="cv" width="1280" height="720" aria-label="측정 사진"></canvas>
+        <div id="vp"><canvas id="cv" width="1280" height="720" aria-label="측정 사진"></canvas></div>
         <canvas id="loupe" width="248" height="248" hidden></canvas>
         <div id="total" class="total" hidden><span class="dot" id="totalDot"></span><span class="n" id="totalN"></span><span class="l" id="totalL"></span></div>
         <span id="sampleTag" class="tag"></span>
@@ -254,6 +266,19 @@ details.help ul{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:col
       </div>
       <div class="pbar">
         <button id="scaleBtn" class="scale warn">기준 치수 없음</button>
+        <span class="grow"></span>
+        <span class="zctl" role="toolbar" aria-label="보기">
+            <button id="handBtn" aria-label="이동" aria-pressed="false" title="이동: 한 손가락으로 사진을 옮기고 화면을 스크롤"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg><span>이동</span></button>
+            <button id="zOut" aria-label="축소" title="축소"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg></button>
+            <button id="zFit" class="zl" aria-label="화면에 맞추기" title="화면에 맞추기">맞춤</button>
+            <button id="zIn" aria-label="확대" title="확대"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
+        </span>
+      </div>
+      <div class="pbar pbar2">
+        <span class="ptools" role="group" aria-label="사진 편집">
+          <button id="rotBtn" class="btn" title="사진을 오른쪽으로 90° 돌리기"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>회전</button>
+          <button id="cropBtn" class="btn" title="필요한 부분만 남기기"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>자르기</button>
+        </span>
         <span class="grow"></span>
         <label class="btn primary"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>촬영<input id="shoot2" type="file" accept="image/*" capture="environment" hidden></label>
         <label class="btn">앨범<input id="pick2" type="file" accept="image/*" hidden></label>
@@ -278,6 +303,12 @@ details.help ul{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:col
         <button id="cnt-ex" aria-pressed="false">비슷한 것</button>
         <button id="cnt-edit" aria-pressed="false">추가 · 제외</button>
       </div>
+      <div id="refRow" class="chips" role="group" aria-label="기준 객체">
+        <span class="lbl">기준 객체</span>
+        <button class="chip" id="ref-auto" aria-pressed="true">자동 판단</button>
+        <button class="chip" id="ref-pick" aria-pressed="false">직접 고르기</button>
+      </div>
+      <p id="refInfo" class="einfo" hidden></p>
       <label id="whatRow" class="what" for="cntWhat"><span>세는 대상</span><input id="cntWhat" type="text" placeholder="비우면 AI가 판단 (예: 워터 배리어, 철근 D22)"></label>
       <div id="labels" class="labels" role="group" aria-label="라벨"></div>
       <label id="thrRow" class="slider" for="thr" hidden>유사도<input id="thr" type="range" min="40" max="95" value="65"><span id="thrV" class="val">0.65</span></label>
@@ -325,6 +356,13 @@ details.help ul{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:col
         <button id="applyPlane" class="primary" style="flex:1 1 100%">바닥 평면 보정 적용</button>
       </div>
       <button id="calDone">기준 치수 닫기</button>
+    </div>
+
+    <div id="t-crop" class="tgrp" hidden>
+      <div class="row">
+        <button id="cropCancel">자르기 취소</button>
+        <button id="cropApply" class="primary" disabled>이 범위만 남기기</button>
+      </div>
     </div>
 
     <div id="t-edit" class="tgrp" hidden>
@@ -403,6 +441,10 @@ details.help ul{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:col
       <li>잘못 찍었으면 사진 오른쪽 위 ↶(되돌리기)·↷(다시 실행)을 누르세요. 그리던 다각형·선·기준 치수는 ‘그리기 취소’나 Esc로 한 번에 지웁니다. ✎ 수정을 켜면 점·꼭지점·상자 모서리·번호를 끌어 옮기고, 눌러 선택해 지울 수 있습니다. 다각형 변의 가운데 점을 끌면 꼭지점이 늘어나고, AI 범위 모서리를 고치면 그 범위를 다시 셉니다.</li>
       <li>거리: 첫 점을 찍은 뒤 손가락을 움직이면 확대경 옆에 실시간 길이가 표시됩니다. ‘연속 측정’을 켜면 끝점에서 다음 구간이 바로 이어집니다. 기준 치수 없이 실시간으로 재는 AR 실측은 Android 앱으로 개발 중입니다.</li>
       <li>면적·부피 ‘자동 면’: 누른 곳에서 경계선(색이 바뀌는 선)까지 면 전체를 잡아 꼭지점 다각형으로 만듭니다. 이미 잡은 면과 겹치는 부분은 빼고 잡으며, 합계는 겹침을 한 번만 셉니다. 경계가 틀리면 ✎ 수정에서 꼭지점을 끌어 고치세요.</li>
+      <li>확대·이동: 사진 위에서 두 손가락을 벌리면 확대, 오므리면 축소, 두 손가락으로 끌면 확대한 사진이 움직입니다. 확대하지 않은 상태에서 두 손가락으로 위아래로 끌면 화면이 스크롤됩니다. 오른쪽 아래 ＋·－·맞춤 버튼도 쓸 수 있고, ‘이동’을 켜면 한 손가락으로 사진을 옮기거나 화면을 내립니다(PC는 Ctrl+휠, +·−·0 키).</li>
+      <li>사진 편집: ‘회전’은 오른쪽으로 90°씩 돌리고, ‘자르기’는 남길 범위만 남깁니다. 원본 해상도에서 다시 만들기 때문에 자르면 작은 대상이 더 크고 선명해집니다. 편집하면 그 전 측정과 기준 치수는 지워집니다.</li>
+      <li>개수 기준 객체: ‘범위 자동’은 범위 안에서 낱개 1개로 본 대상을 점선 ‘기준(자동)’ 상자로 보여 줍니다. 다른 대상을 세려면 ‘기준 객체 → 직접 고르기’를 누르고 그 대상 하나를 상자로 감싸세요. 이미 센 범위는 새 기준으로 다시 세며, 기준과 색·크기가 같은 것만 셉니다.</li>
+      <li>면적에 수치가 ‘–’로 나오면 기준 치수가 없는 것입니다. ‘기준 치수’를 잡거나, 집계의 면 항목에서 그 면의 실제 가로·세로 길이를 넣으면 바로 계산됩니다.</li>
       <li>사진 위를 누른 채 움직이면 확대경이 뜨고, 손을 뗀 곳에 점이 찍힙니다. 스냅이 걸리면 꼭지점·끝선·90°·수평·수직이 표시됩니다.</li>
       <li>개수 ‘범위 자동’: 셀 대상이 모인 범위를 상자로 감싸면 개별 대상을 하나씩 세어 번호를 붙입니다. AI 비전을 쓸 수 있으면 AI가, 없으면 기기가 직접(배경과 색이 다른 덩어리를 낱개 크기로 나눠) 셉니다. 겹치거나 붙어 있어도 따로 셉니다. 무엇을 셀지 적어 두면 더 정확합니다. 수백 개가 넘는 대상은 범위를 나눠 세세요.</li><li>개수 ‘비슷한 것’: 셀 대상 하나를 상자로 1~3개 감싸면 모양과 색이 닮은 것을 사진 전체에서 찾아 번호를 붙입니다. AI를 쓸 수 없는 화면에서도 됩니다. 가까운 것과 먼 것을 하나씩 예시로 주면 원근으로 크기가 달라도 잘 찾습니다. 화면에서 몇 px밖에 안 되는 먼 대상은 놓치기 쉬우니 가까이서 찍으세요.</li>
       <li>기준 치수 ‘기준 길이’는 정면 사진용입니다. 측정면과 같은 면에 놓인 물체(스타프, 유로폼)를 기준으로 삼으세요.</li>
@@ -814,7 +856,7 @@ function overlay(mask,hex){
     var q=i*4; if(e1){ d[q]=255; d[q+1]=255; d[q+2]=255; d[q+3]=255; } else { d[q]=r; d[q+1]=gg; d[q+2]=b; d[q+3]=e2?255:90; } }
   g.putImageData(im,0,0); return c;
 }
-function U(){ var w=cv.getBoundingClientRect().width||S.W; return Math.max(1,S.W/w); }
+function U(){ var w=cv.getBoundingClientRect().width||S.W; return Math.max(0.3,S.W/w); }
 function render(){
   if(!S.photo) return; numberItems();
   var u=U();
@@ -852,10 +894,14 @@ function render(){
       var len=S.cal?distW(it.a,it.b):null; pill((it.a.x+it.b.x)/2,(it.a.y+it.b.y)/2-18*u,len!=null?len.toFixed(2)+" m":"길이 "+no,it.color); }
     else if(it.type==="count"){
       var act=it.id===S.active;
-      it.examples.forEach(function(ex){ ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(ex.x,ex.y,ex.w,ex.h,4*u); else ctx.rect(ex.x,ex.y,ex.w,ex.h); stroke2(it.color,2,[5*u,4*u]); });
+      it.examples.forEach(function(ex,ei){ ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(ex.x,ex.y,ex.w,ex.h,4*u); else ctx.rect(ex.x,ex.y,ex.w,ex.h); stroke2(it.color,2,[5*u,4*u]);
+        if(act) pill(ex.x+ex.w/2,ex.y>40*u?ex.y-14*u:ex.y+ex.h+14*u,"기준 "+(ei+1),"#0f172a"); });
       (it.regions||[]).forEach(function(r){ if(r.failed||r.canceled) return; ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(r.x,r.y,r.w,r.h,8*u); else ctx.rect(r.x,r.y,r.w,r.h);
         if(r.busy){ ctx.fillStyle="rgba(47,98,245,.12)"; ctx.fill(); }
-        stroke2(it.color,2,[8*u,6*u]); var rn=r.pts.filter(function(h){ return !it.removes.some(function(q){ return Math.hypot(q.x-h.x,q.y-h.y)<Math.max(h.r,4); }); }).length; pill(r.x+r.w/2,r.y,r.busy?"AI가 세는 중…":(rn+"개 · AI"),it.color); });
+        stroke2(it.color,2,[8*u,6*u]); var rn=r.pts.filter(function(h){ return !it.removes.some(function(q){ return Math.hypot(q.x-h.x,q.y-h.y)<Math.max(h.r,4); }); }).length; pill(r.x+r.w/2,r.y,r.busy?"AI가 세는 중…":(rn+"개 · "+(r.local?"기기":"AI")),it.color);
+        if(r.ref&&!it.ref&&act){ var f0=r.ref; ctx.beginPath(); ctx.rect(f0.x-3*u,f0.y-3*u,f0.w+6*u,f0.h+6*u); stroke2("#0f172a",1.8,[4*u,3*u]); pill(f0.x+f0.w/2,f0.y>40*u?f0.y-14*u:f0.y+f0.h+14*u,"기준(자동)","#0f172a"); } });
+      if(it.ref){ var rf=it.ref; ctx.beginPath(); if(ctx.roundRect) ctx.roundRect(rf.x,rf.y,rf.w,rf.h,4*u); else ctx.rect(rf.x,rf.y,rf.w,rf.h); stroke2("#0f172a",3);
+        pill(rf.x+rf.w/2,rf.y>40*u?rf.y-14*u:rf.y+rf.h+14*u,"기준","#0f172a"); }
       var pts=countPts(it), many=pts.length>250;
       pts.forEach(function(q,k){ var rr=Math.max(7*u,Math.min((q.r||6)*0.75,13*u)); if(many) rr=4*u;
         marker(q.x,q.y,it.color,many?"":String(k+1),rr); });
@@ -881,7 +927,11 @@ function render(){
   }
   if(S.pend){ dot(S.pend.x,S.pend.y,S.mode==="scale"?"#0f172a":"#2f62f5"); if(live){ path([S.pend,sp]); stroke2("#2f62f5",2,[6*u,5*u]);
     if(S.mode==="line"&&S.cal){ var dl=distW(S.pend,sp); pill((S.pend.x+sp.x)/2,(S.pend.y+sp.y)/2-18*u,dl.toFixed(2)+" m","#2f62f5"); } } }
-  if(aim&&aim.box){ var b=aim.box; ctx.beginPath(); ctx.rect(b.x,b.y,b.w,b.h); stroke2("#2f62f5",2,[5*u,4*u]); }
+  if(S.mode==="crop"){ var cb=aim&&aim.box&&aim.box.w>2?aim.box:S.cropBox;
+    if(cb){ ctx.fillStyle="rgba(0,0,0,.55)"; ctx.fillRect(0,0,S.W,cb.y); ctx.fillRect(0,cb.y+cb.h,S.W,S.H-cb.y-cb.h); ctx.fillRect(0,cb.y,cb.x,cb.h); ctx.fillRect(cb.x+cb.w,cb.y,S.W-cb.x-cb.w,cb.h);
+      ctx.beginPath(); ctx.rect(cb.x,cb.y,cb.w,cb.h); stroke2("#2f62f5",2.5,[8*u,5*u]); pill(cb.x+cb.w/2,cb.y+cb.h/2,"남길 범위","#2f62f5"); } }
+  else if(aim&&aim.box){ var b=aim.box; ctx.beginPath(); ctx.rect(b.x,b.y,b.w,b.h); stroke2(S.refPick&&S.mode==="count"?"#0f172a":"#2f62f5",S.refPick?3:2,[5*u,4*u]);
+    if(S.refPick&&S.mode==="count"&&b.w>8) pill(b.x+b.w/2,b.y-14*u,"기준","#0f172a"); }
   if(aim&&aim.snap){ var sn=aim.snap, p=sn.p;
     if(sn.ray){ ctx.beginPath(); ctx.moveTo(sn.ray.x-sn.ray.ux*4000,sn.ray.y-sn.ray.uy*4000); ctx.lineTo(sn.ray.x+sn.ray.ux*4000,sn.ray.y+sn.ray.uy*4000);
       ctx.setLineDash([4*u,5*u]); ctx.strokeStyle="rgba(47,98,245,.9)"; ctx.lineWidth=1.5*u; ctx.stroke(); ctx.setLineDash([]); }
@@ -893,7 +943,7 @@ function render(){
   }
 }
 function drawLoupe(p,clientX,rect){
-  var R=20*U(); loupe.hidden=false;
+  var R=20*U(); loupe.hidden=false; rect=vp.getBoundingClientRect();
   var left=clientX-rect.left<rect.width/2; loupe.style.left=left?"":"10px"; loupe.style.right=left?"10px":"";
   lctx.fillStyle="#000"; lctx.fillRect(0,0,248,248); lctx.imageSmoothingEnabled=false;
   lctx.drawImage(cv,p.x-R,p.y-R,2*R,2*R,0,0,248,248);
@@ -920,6 +970,7 @@ function list(){
       var n=countPts(it).length; if(it.id===S.active) cls+=" active"; T.N+=n; has.N=1;
       main=inp(it,"name","text",'aria-label="라벨 이름"'); val=n+" 개";
       var parts=[]; if((it.regions||[]).length) parts.push("범위 "+it.regions.length+(it.regions.every(function(r){ return r.local; })?" (기기)":" (AI)")); if(it.examples.length) parts.push("예시 "+it.examples.length+" · 유사도 "+it.thr.toFixed(2));
+      if((it.regions||[]).length) parts.push(it.ref?"기준 직접 지정":"기준 자동");
       if(it.adds.length) parts.push("추가 "+it.adds.length); if(it.removes.length) parts.push("제외 "+it.removes.length); sub=parts.join(" · ");
       acts='<button data-act="'+it.id+'">이 라벨로 세기</button>'+acts;
     } else if(k==="area"){
@@ -928,6 +979,8 @@ function list(){
       val=f(q.area,2)+" m²<small>"+f(vol,3)+" m³</small>";
       sub=(it.type==="region"?"자동 면":it.auto?(it.edited?"자동 면 (수정함)":"자동 면"):"다각형")+(q.area!=null?" · "+(q.plane?"바닥 보정":"가로 "+f(q.w,2)+" × 세로 "+f(q.h,2)+" m")+(q.open?" · 개구부 공제 "+f(q.open,2)+" m²":""):" · 기준 치수를 잡으면 계산됩니다");
       if(it.note) sub+=" · "+esc(it.note);
+      if(q.area==null&&it.type==="poly") extra+='<div class="calq"><span>이 면의</span><select id="cq-d-'+it.id+'" aria-label="방향"><option value="w">가로</option><option value="h">세로</option></select>'+
+        '<input id="cq-v-'+it.id+'" type="number" inputmode="decimal" min="0" step="0.01" placeholder="실제 길이" aria-label="실제 길이 m"><span>m 를</span><button data-calgo="'+it.id+'">기준으로 계산</button></div>';
       if(it.type==="poly"&&q.area!=null){ var sp=sensNote(calSens(function(){ return polyQ(it).area; })); if(sp.indexOf("warnline")>0) extra+=sp; else sub+=" · "+sp.replace(/<[^>]+>/g,""); }
       var ovl=q.area!=null&&OV[it.id]>Math.max(0.005*q.area,1e-6)?Math.min(OV[it.id],q.area):0;
       if(ovl) extra+='<p class="warnline">앞 항목과 '+f(ovl,2)+' m² 겹칩니다. 합계에는 한 번만 넣었습니다.</p>';
@@ -981,7 +1034,7 @@ function list(){
   else if(S.cal.type==="len"){ b.textContent="기준 길이 · 1px="+(S.cal.s*1000).toFixed(1)+"mm"; b.className="scale ok"; }
   else { b.textContent=(S.cal.assumed?"가정 ":"")+"바닥 4점 · "+S.cal.w+"×"+S.cal.h+"m"; b.className="scale ok"; }
   if(!S.editing){ $("ctx-cancel").hidden=!(S.pend||(S.calDraft.length&&S.mode==="scale")); $("ctx-busy").hidden=!busyRegions().length; }
-  undoBtns();
+  undoBtns(); refUI();
   $("undoPt").disabled=!S.draft.length; $("closePoly").disabled=S.draft.length<3;
   $("closePoly").textContent=S.draft.length?"닫고 확정 ("+S.draft.length+"점)":"닫고 확정";
   labels(); totalBadge(T,has); if(S.view==="report") report(sm);
@@ -1014,6 +1067,7 @@ var HINTS={
   earth:"터파기 구역 경계를 따라 꼭지점을 누르세요. 첫 점을 다시 누르면 닫힙니다.",
   line:"잴 구간의 양 끝을 차례로 누르세요.",
   scale_len:"길이를 아는 물체의 양 끝을 차례로 누르세요.",
+  crop:"남길 범위를 대각선으로 끌어 상자로 감싸세요. 필요한 부분만 남기면 작은 대상이 크게 보여 더 정확합니다.",
   scale_plane:"바닥에서 크기를 아는 직사각형의 네 모서리를 둘레 순서대로 누르세요. 잴 범위를 거의 덮을수록 정확합니다."
 };
 function modeHint(){
@@ -1031,8 +1085,8 @@ function setFn(fn){
 }
 function setMode(m){
   if(S.editing){ S.editing=false; $("editBtn").setAttribute("aria-pressed","false"); selH=null; }
-  if(m!=="scale") S.prevMode=m;
-  S.mode=m; S.pend=null; S.calDraft=[]; S.lenDraft=null; if(m!=="poly"&&m!=="earth") S.draft=[];
+  if(m!=="scale"&&m!=="crop") S.prevMode=m;
+  S.mode=m; S.cropBox=null; $("t-crop").hidden=m!=="crop"; $("cropApply").disabled=true; S.pend=null; S.calDraft=[]; S.lenDraft=null; if(m!=="poly"&&m!=="earth") S.draft=[];
   $("t-count").hidden=m!=="count"; $("t-area").hidden=!(m==="auto"||m==="poly"); $("ctx-auto").hidden=m!=="auto";
   $("t-earth").hidden=m!=="earth"; $("t-scale").hidden=m!=="scale"; $("t-length").hidden=m!=="line"; if(m!=="line") S.chainColor=null;
   $("ctx-draw").hidden=!(m==="poly"||m==="earth"); $("ctx-snap").hidden=!SNAPMODES[m]; $("t-edit").hidden=true;
@@ -1041,7 +1095,7 @@ function setMode(m){
   press("ea-plan",S.earthView==="plan"); press("ea-sec",S.earthView==="section");
   hint(modeHint()); refresh();
 }
-function setCntMode(k){ S.cntMode=k; press("cnt-auto",k==="auto"); press("cnt-ex",k==="ex"); press("cnt-edit",k==="edit"); $("whatRow").hidden=k!=="auto"||!AI; $("thrRow").hidden=k!=="ex"; hint(modeHint()); }
+function setCntMode(k){ S.cntMode=k; if(k!=="auto") S.refPick=false; $("refRow").hidden=k!=="auto"; refUI(); press("cnt-auto",k==="auto"); press("cnt-ex",k==="ex"); press("cnt-edit",k==="edit"); $("whatRow").hidden=k!=="auto"||!AI; $("thrRow").hidden=k!=="ex"; hint(modeHint()); }
 function setCalMode(k){ S.calMode=k; S.pend=null; S.calDraft=[]; S.lenDraft=null; press("cal-len",k==="len"); press("cal-plane",k==="plane");
   $("formLen").hidden=true; $("formPlane").hidden=true; hint(modeHint()); render(); }
 function closeDraft(){
@@ -1190,23 +1244,86 @@ function deleteSel(){ if(!selH) return; pushUndo(); var h=selH, it=h.it;
     default: S.items.splice(S.items.indexOf(it),1); if(S.active===it.id) S.active=null; hint("지웠습니다."); }
   selH=null; editPanel(); refresh(); }
 
-function toImg(e){ var r=cv.getBoundingClientRect(); return { x:(e.clientX-r.left)*S.W/r.width, y:(e.clientY-r.top)*S.H/r.height }; }
+function toImg(e){ var r=cv.getBoundingClientRect(); return { x:Math.min(S.W,Math.max(0,(e.clientX-r.left)*S.W/r.width)), y:Math.min(S.H,Math.max(0,(e.clientY-r.top)*S.H/r.height)) }; }
 function updateAim(e){
   var p=toImg(e); aim.raw=p; aim.snap=SNAPMODES[S.mode]?snap(p):{p:p};
-  if(S.mode==="count"&&S.cntMode!=="edit"){ var a=aim.start; aim.box={x:Math.min(a.x,p.x),y:Math.min(a.y,p.y),w:Math.abs(p.x-a.x),h:Math.abs(p.y-a.y)}; }
+  if((S.mode==="count"&&S.cntMode!=="edit")||S.mode==="crop"){ var a=aim.start; aim.box={x:Math.min(a.x,p.x),y:Math.min(a.y,p.y),w:Math.abs(p.x-a.x),h:Math.abs(p.y-a.y)}; }
   render(); drawLoupe(aim.snap.p,e.clientX,cv.getBoundingClientRect());
 }
-cv.addEventListener("pointerdown",function(e){ if(e.button>0||!S.photo) return; e.preventDefault(); try{ cv.setPointerCapture(e.pointerId); }catch(_){}
+/* =========================================================
+   보기: 확대·축소·이동
+   - 한 손가락: 측정 (‘이동’을 켜면 사진 이동 · 화면 스크롤)
+   - 두 손가락: 벌리고 오므리면 확대·축소, 끌면 이동 (확대 전이면 화면 스크롤)
+   ========================================================= */
+var vp=$("vp"), V={ z:1, x:0, y:0, bw:0, bh:0, vw:0, vh:0 }, ZMAX=8, PT={}, NPT=0, GES=null, vpW=0, rafV=0;
+function layoutView(keep){
+  if(!S.photo) return; var vw=vp.clientWidth; if(!vw) return;
+  var maxH=Math.max(220,Math.round((window.innerHeight||720)*0.56)), bs=Math.min(vw/S.W,maxH/S.H), mid=null;
+  if(keep&&V.bw&&V.z>1.001) mid={ x:(V.vw/2-V.x)/(V.bw*V.z), y:(V.vh/2-V.y)/(V.bh*V.z) };
+  V.bw=S.W*bs; V.bh=S.H*bs; V.vw=vw; V.vh=Math.round(V.bh); vpW=vw;
+  vp.style.height=V.vh+"px"; cv.style.width=V.bw+"px"; cv.style.height=V.bh+"px";
+  if(!keep) V.z=1;
+  if(mid){ V.x=V.vw/2-mid.x*V.bw*V.z; V.y=V.vh/2-mid.y*V.bh*V.z; }
+  applyView(true);
+}
+function clampView(){ var cw=V.bw*V.z, ch=V.bh*V.z;
+  V.x=cw<=V.vw?(V.vw-cw)/2:Math.min(0,Math.max(V.vw-cw,V.x));
+  V.y=ch<=V.vh?(V.vh-ch)/2:Math.min(0,Math.max(V.vh-ch,V.y)); }
+function applyView(now){ clampView();
+  cv.style.transform="translate("+V.x.toFixed(2)+"px,"+V.y.toFixed(2)+"px) scale("+V.z.toFixed(4)+")";
+  $("zFit").textContent=V.z>1.01?V.z.toFixed(1)+"×":"맞춤"; $("zOut").disabled=V.z<=1.001; $("zIn").disabled=V.z>=ZMAX-0.001;
+  if(now){ render(); return; }
+  if(!rafV) rafV=requestAnimationFrame(function(){ rafV=0; render(); }); }
+function zoomAt(z,sx,sy){ var z2=Math.min(ZMAX,Math.max(1,z)); V.x=sx-(sx-V.x)*z2/V.z; V.y=sy-(sy-V.y)*z2/V.z; V.z=z2; applyView(); }
+function vpRel(cx,cy){ var r=vp.getBoundingClientRect(); return { x:cx-r.left, y:cy-r.top }; }
+function ptList(){ return Object.keys(PT).map(function(k){ return PT[k]; }); }
+function abortSingle(){ if(aim){ aim=null; loupe.hidden=true; } if(drag){ if(drag.moved) undo(); drag=null; } render(); }
+function startPinch(){ abortSingle(); var a=ptList(), p=a[0], q=a[1], m={ x:(p.x+q.x)/2, y:(p.y+q.y)/2 };
+  GES={ type:"pinch", d0:Math.hypot(p.x-q.x,p.y-q.y)||1, z0:V.z, m0:vpRel(m.x,m.y), x0:V.x, y0:V.y, last:m, zoom:V.z>1.001 }; }
+function pinchMove(){ var a=ptList(), p=a[0], q=a[1], d=Math.hypot(p.x-q.x,p.y-q.y)||1, m={ x:(p.x+q.x)/2, y:(p.y+q.y)/2 };
+  if(!GES.zoom){
+    /* 확대하지 않은 상태에서 두 손가락으로 끌면 화면을 스크롤한다 */
+    if(Math.abs(d/GES.d0-1)<0.12){ window.scrollBy(0,GES.last.y-m.y); GES.last=m; return; }
+    GES.zoom=true; GES.d0=d; GES.z0=V.z; GES.m0=vpRel(m.x,m.y); GES.x0=V.x; GES.y0=V.y; }
+  var z2=Math.min(ZMAX,Math.max(1,GES.z0*d/GES.d0)), r=vpRel(m.x,m.y);
+  V.x=r.x-(GES.m0.x-GES.x0)*z2/GES.z0; V.y=r.y-(GES.m0.y-GES.y0)*z2/GES.z0; V.z=z2; applyView(); GES.last=m; }
+function panMove(cx,cy){ var dx=cx-GES.last.x, dy=cy-GES.last.y, oy=V.y; GES.last={ x:cx, y:cy };
+  if(V.z>1.001){ V.x+=dx; V.y+=dy; applyView(); }
+  var rest=dy-(V.y-oy); if(Math.abs(rest)>0.5) window.scrollBy(0,-rest); }
+vp.addEventListener("pointerdown",function(e){
+  if(e.button>0||!S.photo) return; e.preventDefault(); try{ vp.setPointerCapture(e.pointerId); }catch(_){}
+  PT[e.pointerId]={ x:e.clientX, y:e.clientY }; NPT=Object.keys(PT).length;
+  if(NPT===2){ startPinch(); return; } if(NPT>2||GES) return;
+  if(S.hand){ GES={ type:"pan", last:{ x:e.clientX, y:e.clientY } }; vp.style.cursor="grabbing"; return; }
   if(S.editing){ editStart(toImg(e)); return; } aim={start:toImg(e)}; updateAim(e); });
-cv.addEventListener("pointermove",function(e){ if(S.editing){ if(drag) editMove(e); return; } if(aim) updateAim(e); });
-cv.addEventListener("pointercancel",function(){ if(drag&&drag.moved) undo(); drag=null; aim=null; loupe.hidden=true; render(); });
-cv.addEventListener("pointerup",function(e){ if(S.editing){ editEnd(e); return; } if(!aim) return; updateAim(e); var a=aim; aim=null; loupe.hidden=true; commit(a); });
+vp.addEventListener("pointermove",function(e){
+  if(PT[e.pointerId]) PT[e.pointerId]={ x:e.clientX, y:e.clientY };
+  if(GES){ if(GES.type==="pinch"&&NPT>=2) pinchMove(); else if(GES.type==="pan"&&PT[e.pointerId]) panMove(e.clientX,e.clientY); return; }
+  if(S.editing){ if(drag) editMove(e); return; } if(aim) updateAim(e); });
+function ptEnd(e,cancel){ var had=!!PT[e.pointerId]; delete PT[e.pointerId]; NPT=Object.keys(PT).length;
+  if(GES){ if(!NPT){ GES=null; vp.style.cursor=""; } return; }   /* 두 손가락 뒤 남은 손가락은 찍지 않는다 */
+  if(!had) return;
+  if(cancel){ if(drag&&drag.moved) undo(); drag=null; aim=null; loupe.hidden=true; render(); return; }
+  if(S.editing){ editEnd(e); return; } if(!aim) return; updateAim(e); var a=aim; aim=null; loupe.hidden=true; commit(a); }
+vp.addEventListener("pointerup",function(e){ ptEnd(e,false); });
+vp.addEventListener("pointercancel",function(e){ ptEnd(e,true); });
+vp.addEventListener("wheel",function(e){ if(!S.photo||!(e.ctrlKey||e.metaKey)) return; e.preventDefault();
+  var r=vpRel(e.clientX,e.clientY); zoomAt(V.z*Math.exp(-e.deltaY*0.008),r.x,r.y); },{ passive:false });
+$("zIn").addEventListener("click",function(){ zoomAt(V.z*1.6,V.vw/2,V.vh/2); });
+$("zOut").addEventListener("click",function(){ zoomAt(V.z/1.6,V.vw/2,V.vh/2); });
+$("zFit").addEventListener("click",function(){ V.z=1; applyView(); });
+$("handBtn").addEventListener("click",function(){ S.hand=!S.hand; this.setAttribute("aria-pressed",String(S.hand)); vp.classList.toggle("hand",S.hand);
+  hint(S.hand?"이동: 한 손가락으로 끌면 확대한 사진이 움직이고, 사진 끝에 닿으면 화면이 스크롤됩니다. 측정하려면 ‘이동’을 다시 누르세요.":modeHint()); });
+if(window.ResizeObserver) new ResizeObserver(function(){ if(vp.clientWidth&&vp.clientWidth!==vpW) layoutView(true); }).observe(vp);
+
 function commit(a){
   var p=a.snap.p, m=S.mode;
   if(m==="auto"){ pushUndo(); var res=addFace(p.x,p.y,+$("tol").value);
     if(!res.it){ UNDO.pop(); undoBtns();
       if(res.already){ numberItems(); hint("이미 잡은 면입니다 (면적 "+res.already.no+"). 경계를 고치려면 ✎ 수정에서 꼭지점을 끄세요."); }
       else hint("잡힌 면이 너무 작습니다. 인식 범위를 높이거나 면 가운데를 눌러 보세요."); refresh(); return; }
+    var frac=Math.abs(sArea(res.it.pts))/(S.W*S.H);
+    if(frac<0.004){ hint("잡힌 면이 아주 작습니다 (사진의 "+(frac*100).toFixed(2)+"%). 원하는 면이 아니면 ↶로 되돌린 뒤 인식 범위를 높이거나, ‘다각형’으로 꼭지점을 찍으세요."); refresh(); return; }
     hint(res.big?"사진의 넓은 부분이 잡혔습니다. 원하는 범위보다 크면 인식 범위를 낮추거나, ✎ 수정에서 꼭지점을 끌어 고치세요.":
       "경계선까지 면을 잡았습니다 (꼭지점 "+res.it.pts.length+"개). 경계가 틀리면 ✎ 수정에서 꼭지점을 끌어 고치세요."+(S.cal?"":" 수치는 기준 치수를 잡은 뒤 나옵니다."));
     refresh(); return; }
@@ -1228,7 +1345,14 @@ function commit(a){
       if(S.chain){ S.chainColor=lc; S.pend={x:p.x,y:p.y}; hint("다음 끝점을 누르세요. 끝내려면 ‘그리던 것 취소’나 Esc."); } else hint(modeHint()); refresh(); }
     else { S.lenDraft=[q,{x:p.x,y:p.y}]; S.calDraft=S.lenDraft.slice(); $("formLen").hidden=false; hint("이 선의 실제 길이를 넣으세요."); render(); $("refMm").focus(); }
     return; }
+  if(m==="crop"){ var cb=a.box;
+    if(!cb||cb.w<20||cb.h<20){ hint("손을 떼지 말고 대각선으로 끌어 남길 범위를 감싸 주세요."); render(); return; }
+    S.cropBox={x:cb.x,y:cb.y,w:cb.w,h:cb.h}; $("cropApply").disabled=false;
+    hint("‘이 범위만 남기기’를 누르면 잘라냅니다. 다시 끌면 범위를 바꿉니다."+(measured()?" 지금까지 측정한 것은 지워집니다.":"")); render(); return; }
   if(m==="count"){
+    if(S.cntMode==="auto"&&S.refPick){ var rb=a.box;
+      if(!rb||rb.w<5||rb.h<5){ hint("기준이 될 대상 하나를 대각선으로 끌어 상자로 감싸 주세요."); render(); return; }
+      setRef({x:rb.x,y:rb.y,w:rb.w,h:rb.h}); return; }
     if(S.cntMode==="auto"){ var bx=a.box;
       if(!bx||bx.w<12||bx.h<12){ hint("손을 떼지 말고 대각선으로 끌어, 셀 대상이 모인 범위를 상자로 감싸 주세요."); render(); return; }
       var ag=activeGroup(false); if(!ag||ag.examples.length){ S.active=null; ag=activeGroup(true); }
@@ -1290,13 +1414,21 @@ $("groups").addEventListener("change",function(e){
 $("groups").addEventListener("toggle",function(e){ var g=e.target.getAttribute&&e.target.getAttribute("data-g"); if(g){ S.grpOpen[g]=e.target.open; return; } var id=+e.target.getAttribute("data-open"); if(!id) return;
   var it=S.items.filter(function(i){ return i.id===id; })[0]; if(it) it._open=e.target.open; },true);
 $("groups").addEventListener("click",function(e){
-  var del=+e.target.getAttribute("data-del"), act=+e.target.getAttribute("data-act");
+  var del=+e.target.getAttribute("data-del"), act=+e.target.getAttribute("data-act"), cg=+e.target.getAttribute("data-calgo");
+  if(cg){ var ci=S.items.filter(function(i){ return i.id===cg; })[0]; if(!ci) return;
+    var v=parseFloat($("cq-v-"+cg).value), dir=$("cq-d-"+cg).value;
+    if(!(v>0)){ hint("이 면의 실제 "+(dir==="w"?"가로":"세로")+" 길이를 m로 넣으세요 (예: 벽 폭 6.0)."); $("cq-v-"+cg).focus(); return; }
+    var xs=ci.pts.map(function(q){ return q.x; }), ys=ci.pts.map(function(q){ return q.y; }), x0=Math.min.apply(null,xs), x1=Math.max.apply(null,xs), y0=Math.min.apply(null,ys), y1=Math.max.apply(null,ys), cx=(x0+x1)/2, cy=(y0+y1)/2;
+    var cp2=dir==="w"?[{x:x0,y:cy},{x:x1,y:cy}]:[{x:cx,y:y0},{x:cx,y:y1}], Lp=Math.hypot(cp2[1].x-cp2[0].x,cp2[1].y-cp2[0].y);
+    if(Lp<4){ hint("면이 너무 작아 기준으로 쓸 수 없습니다."); return; }
+    pushUndo(); setCal({ type:"len", pts:cp2, mm:Math.round(v*1000), s:v/Lp });
+    numberItems(); hint("면적 "+ci.no+"의 "+(dir==="w"?"가로":"세로")+" "+v+" m를 기준으로 계산했습니다. 정면에서 찍은 사진일 때 정확합니다. 비스듬한 바닥이면 ‘기준 치수 → 바닥 4점’을 쓰세요."); refresh(); return; }
   if(del){ pushUndo(); S.items=S.items.filter(function(i){ return i.id!==del; }); if(S.active===del) S.active=null; refresh(); }
   if(act){ var g=S.items.filter(function(i){ return i.id===act; })[0]; S.active=act; $("thr").value=Math.round(g.thr*100); $("thrV").textContent=g.thr.toFixed(2); setFn("count"); } });
 function resetMeasure(){ clearHistory(); selH=null; drag=null; if(S.editing) setEditing(false); S.items=[]; S.cal=null; S.calVer++; S.pend=null; S.draft=[]; S.calDraft=[]; S.lenDraft=null; S.active=null; S.seq=0; }
 function loadImage(img,label){
   S.src=img; setPhoto(img,img.naturalWidth||img.width,img.naturalHeight||img.height); resetMeasure();
-  $("empty").hidden=true; $("stageWrap").hidden=false;
+  $("empty").hidden=true; $("stageWrap").hidden=false; V.z=1; layoutView();
   $("sampleTag").textContent=label; $("sampleTag").hidden=!label; sampleButtons(null);
 }
 function openFile(file){ if(!file) return; var url=URL.createObjectURL(file), img=new Image();
@@ -1306,6 +1438,56 @@ function openFile(file){ if(!file) return; var url=URL.createObjectURL(file), im
   img.onerror=function(){ URL.revokeObjectURL(url); $("status").textContent=""; hint("이 파일은 열 수 없습니다. JPG나 PNG 사진을 골라 주세요."); };
   img.src=url; }
 ["shoot","pick","shoot2","pick2"].forEach(function(id){ $(id).addEventListener("change",function(){ var file=this.files[0]; this.value=""; openFile(file); }); });
+
+/* ---------- 사진 편집: 회전 · 자르기 (원본 해상도에서 다시 만든다) ---------- */
+function measured(){ return S.items.length>0||!!S.cal; }
+function rebuildPhoto(c){ var lb=$("sampleTag").textContent||""; if(lb&&!/편집$/.test(lb)) lb+=" · 편집";
+  loadImage(c,lb); setFn(S.fn); }
+function rotatePhoto(){ var src=S.src||S.photo, w=src.naturalWidth||src.width, h=src.naturalHeight||src.height, k=Math.min(1,2560/Math.max(w,h));
+  var c=document.createElement("canvas"); c.width=Math.round(h*k); c.height=Math.round(w*k);
+  var g=c.getContext("2d"); g.imageSmoothingQuality="high"; g.translate(c.width,0); g.rotate(Math.PI/2); g.drawImage(src,0,0,w*k,h*k);
+  rebuildPhoto(c); hint("사진을 오른쪽으로 90° 돌렸습니다."); }
+function applyCrop(){ var b=S.cropBox; if(!b) return;
+  var src=S.src||S.photo, k=(src.naturalWidth||src.width)/S.W, sw=b.w*k, sh=b.h*k, z=Math.min(1,2560/Math.max(sw,sh));
+  var c=document.createElement("canvas"); c.width=Math.max(16,Math.round(sw*z)); c.height=Math.max(16,Math.round(sh*z));
+  var g=c.getContext("2d"); g.imageSmoothingQuality="high"; g.drawImage(src,b.x*k,b.y*k,sw,sh,0,0,c.width,c.height);
+  rebuildPhoto(c); hint("고른 범위만 남겼습니다. 대상이 크게 보여 세기·면 잡기가 더 정확해집니다."); }
+var rotArm=0, rotHTML=$("rotBtn").innerHTML;
+$("rotBtn").addEventListener("click",function(){ if(!S.photo) return; var b=this;
+  if(measured()&&Date.now()-rotArm>5000){ rotArm=Date.now(); b.innerHTML=rotHTML.replace("회전","한 번 더 눌러 회전");
+    hint("회전하면 지금까지 측정한 것과 기준 치수가 모두 지워집니다. 계속하려면 ‘회전’을 한 번 더 누르세요.");
+    setTimeout(function(){ if(Date.now()-rotArm>=4900){ b.innerHTML=rotHTML; } },5000); return; }
+  rotArm=0; b.innerHTML=rotHTML; rotatePhoto(); });
+$("cropBtn").addEventListener("click",function(){ if(!S.photo) return; if(S.mode==="crop"){ setFn(S.fn); return; } setMode("crop");
+  if(measured()) hint(HINTS.crop+" 자르면 지금까지 측정한 것과 기준 치수가 지워집니다."); });
+$("cropCancel").addEventListener("click",function(){ setFn(S.fn); });
+$("cropApply").addEventListener("click",applyCrop);
+
+/* ---------- 개수: 기준 객체 ---------- */
+function refInside(r,box){ var cx=r.x+r.w/2, cy=r.y+r.h/2; return cx>box.x&&cx<box.x+box.w&&cy>box.y&&cy<box.y+box.h; }
+function recountGroup(g){ (g.regions||[]).slice().forEach(function(r){ if(r.failed||r.canceled||r.busy) return; autoCount(g,{x:r.x,y:r.y,w:r.w,h:r.h},r); }); }
+function setRef(box){
+  pushUndo(); var g=activeGroup(false); if(!g||g.examples.length){ S.active=null; g=activeGroup(true); }
+  g.ref=box; S.refPick=false;
+  if((g.regions||[]).some(function(r){ return !r.failed&&!r.canceled; })) recountGroup(g);
+  else hint("기준을 정했습니다. 이제 셀 대상이 모인 범위를 크게 감싸세요. 기준과 색·크기가 같은 것만 셉니다.");
+  refresh(); }
+function refUI(){
+  var g=activeGroup(false), user=!!(g&&g.ref), info="";
+  press("ref-auto",!S.refPick&&!user); press("ref-pick",S.refPick||user);
+  if(S.refPick) info="기준 고르는 중: 셀 대상 하나만 상자로 감싸세요.";
+  else if(user) info="기준: 직접 고른 대상 (사진의 굵은 ‘기준’ 상자). 이 대상과 색·크기가 같은 것만 셉니다. ‘자동 판단’을 누르면 되돌립니다.";
+  else if(g&&(g.regions||[]).some(function(r){ return r.ref; })) info="기준: 자동 (사진의 점선 ‘기준’ 상자를 낱개 1개로 봤습니다). 다른 대상을 기준으로 하려면 ‘직접 고르기’.";
+  $("refInfo").textContent=info; $("refInfo").hidden=!info||S.cntMode!=="auto"; }
+$("ref-auto").addEventListener("click",function(){ S.refPick=false; var g=activeGroup(false);
+  if(g&&g.ref){ pushUndo(); delete g.ref; if((g.regions||[]).length) recountGroup(g); else hint("기준을 자동 판단으로 되돌렸습니다."); } else hint(modeHint());
+  refresh(); });
+$("ref-pick").addEventListener("click",function(){ if(S.cntMode!=="auto") setCntMode("auto"); S.refPick=!S.refPick;
+  hint(S.refPick?"기준이 될 대상 하나만 상자로 꼭 맞게 감싸세요. 이미 센 범위가 있으면 이 기준으로 다시 셉니다.":modeHint()); refresh(); });
+function refColor(r){ var c=document.createElement("canvas"); c.width=16; c.height=16; var g=c.getContext("2d");
+  g.drawImage(S.photo,r.x+r.w*0.25,r.y+r.h*0.25,Math.max(1,r.w*0.5),Math.max(1,r.h*0.5),0,0,16,16);
+  var d=g.getImageData(0,0,16,16).data, s=[0,0,0]; for (var i=0;i<256;i++){ var l=toLab(d[i*4],d[i*4+1],d[i*4+2]); s[0]+=l[0]; s[1]+=l[1]; s[2]+=l[2]; }
+  return [s[0]/256,s[1]/256,s[2]/256]; }
 
 /* ---------- 범위 자동 세기 (AI 비전) ---------- */
 function cropBlob(box,cb){
@@ -1332,7 +1514,7 @@ function otsu(v,lo,hi){ var B=64,h=new Float64Array(B),n=v.length; for (var i=0;
   var sum=0; for (var i=0;i<B;i++) sum+=i*h[i]; var wB=0,sB=0,best=0,bt=B/2;
   for (var i=0;i<B;i++){ wB+=h[i]; if(!wB) continue; var wF=n-wB; if(!wF) break; sB+=i*h[i]; var mB=sB/wB,mF=(sum-sB)/wF,bv=wB*wF*(mB-mF)*(mB-mF); if(bv>best){ best=bv; bt=i; } }
   return lo+(bt+0.5)/B*(hi-lo); }
-function localCount(box){
+function localCount(box,ref){
   var sc=Math.min(1,420/Math.max(box.w,box.h)), W=Math.max(8,Math.round(box.w*sc)), H=Math.max(8,Math.round(box.h*sc)), N=W*H;
   var c=document.createElement("canvas"); c.width=W; c.height=H; var g=c.getContext("2d"); g.imageSmoothingQuality="high";
   g.drawImage(S.photo,box.x,box.y,box.w,box.h,0,0,W,H); var d=g.getImageData(0,0,W,H).data, L=new Array(N);
@@ -1340,9 +1522,9 @@ function localCount(box){
   function maskFrom(bgc){ var dv=new Float32Array(N); for (var i=0;i<N;i++){ var m=1e9; for (var j=0;j<bgc.length;j++) m=Math.min(m,dist3(L[i],bgc[j])); dv[i]=m; }
     var mx=0; for (var i=0;i<N;i++) if(dv[i]>mx) mx=dv[i]; var T=Math.max(10,otsu(dv,0,Math.min(120,mx)+1e-3)), M=new Uint8Array(N); for (var i=0;i<N;i++) M[i]=dv[i]>T?1:0; return M; }
   var ring=[], bw=Math.max(2,Math.round(Math.min(W,H)*0.02)); for (var y=0;y<H;y++) for (var x=0;x<W;x++) if(x<bw||y<bw||x>=W-bw||y>=H-bw) ring.push(L[y*W+x]);
-  var km=kmeans(ring,3,8), bg=km.c.filter(function(q,j){ return km.n[j]>=ring.length*0.12; }), M=maskFrom(bg), fr=0; for (var i=0;i<N;i++) fr+=M[i];
+  var km=kmeans(ring,3,8), bg=km.c.filter(function(q,j){ return km.n[j]>=ring.length*0.12; }), bgUsed=bg, M=maskFrom(bg), fr=0; for (var i=0;i<N;i++) fr+=M[i];
   if(fr>0.8*N||fr<0.02*N){ /* 대상이 상자를 거의 채움: 가장 어두운 색(틈·그림자)을 배경으로 */
-    var all=[]; for (var i=0;i<N;i+=2) all.push(L[i]); var k2=kmeans(all,3,8), dk=0; k2.c.forEach(function(q,j){ if(q[0]<k2.c[dk][0]) dk=j; }); M=maskFrom([k2.c[dk]]); }
+    var all=[]; for (var i=0;i<N;i+=2) all.push(L[i]); var k2=kmeans(all,3,8), dk=0; k2.c.forEach(function(q,j){ if(q[0]<k2.c[dk][0]) dk=j; }); bgUsed=[k2.c[dk]]; M=maskFrom(bgUsed); }
   function morph(A,er){ var B=new Uint8Array(N); for (var y=0;y<H;y++) for (var x=0;x<W;x++){ var v=er?1:0;
       for (var dy=-1;dy<=1&&(er?v:!v);dy++) for (var dx=-1;dx<=1;dx++){ var xx=x+dx,yy=y+dy; var q=(xx<0||yy<0||xx>=W||yy>=H)?(er?1:0):A[yy*W+xx]; if(er&&!q){ v=0; break; } if(!er&&q){ v=1; break; } }
       B[y*W+x]=v; } return B; }
@@ -1363,39 +1545,58 @@ function localCount(box){
   for (var i=0;i<N;i++) D[i]/=3;
   /* 덩어리 나누기 */
   var lab=new Int32Array(N), comps=[];
-  for (var s0=0;s0<N;s0++){ if(!M[s0]||lab[s0]) continue; var id=comps.length+1, px=[], q=[s0]; lab[s0]=id; var rmax=0,border=false;
+  for (var s0=0;s0<N;s0++){ if(!M[s0]||lab[s0]) continue; var id=comps.length+1, px=[], q=[s0]; lab[s0]=id; var rmax=0,border=false, bx0=W,by0=H,bx1=0,by1=0, cl=[0,0,0];
     while(q.length){ var p=q.pop(); px.push(p); if(D[p]>rmax) rmax=D[p]; var x=p%W,y=(p/W)|0; if(x===0||y===0||x===W-1||y===H-1) border=true;
+      if(x<bx0)bx0=x; if(x>bx1)bx1=x; if(y<by0)by0=y; if(y>by1)by1=y; cl[0]+=L[p][0]; cl[1]+=L[p][1]; cl[2]+=L[p][2];
       for (var dy=-1;dy<=1;dy++) for (var dx=-1;dx<=1;dx++){ var xx=x+dx,yy=y+dy; if(xx<0||yy<0||xx>=W||yy>=H) continue; var r=yy*W+xx; if(M[r]&&!lab[r]){ lab[r]=id; q.push(r); } } }
-    comps.push({ px:px, a:px.length, r:Math.max(1,rmax), border:border }); }
-  if(!comps.length) return [];
+    comps.push({ px:px, a:px.length, r:Math.max(1,rmax), border:border, bb:[bx0,by0,bx1,by1], lab:[cl[0]/px.length,cl[1]/px.length,cl[2]/px.length] }); }
+  var pts=[]; pts.ref=null;
+  if(!comps.length) return pts;
+  /* 기준 객체: 직접 고른 상자가 있으면 그 대상의 면적·반지름·색을 낱개 기준으로 쓴다 */
+  var refA=0, refR=0, refC=null;
+  if(ref){
+    if(refInside(ref,box)){ var rx0=Math.max(0,Math.floor((ref.x-box.x)*sc)), ry0=Math.max(0,Math.floor((ref.y-box.y)*sc)), rx1=Math.min(W,Math.ceil((ref.x+ref.w-box.x)*sc)), ry1=Math.min(H,Math.ceil((ref.y+ref.h-box.y)*sc)), tot=0, cs=[0,0,0];
+      for (var y=ry0;y<ry1;y++) for (var x=rx0;x<rx1;x++){ var i=y*W+x; tot++; if(!M[i]) continue; refA++; if(D[i]>refR) refR=D[i]; cs[0]+=L[i][0]; cs[1]+=L[i][1]; cs[2]+=L[i][2]; }
+      if(refA>=Math.max(6,tot*0.15)) refC=[cs[0]/refA,cs[1]/refA,cs[2]/refA]; else refA=0; }
+    if(!refA){ var rw=ref.w*sc, rh=ref.h*sc; refA=Math.max(6,0.7*rw*rh); refR=Math.max(1,Math.min(rw,rh)/2); refC=refColor(ref); }
+    var bgd=Math.min.apply(null,bgUsed.map(function(q){ return dist3(q,refC); }).concat([200])), cT=Math.max(22,0.6*bgd);
+    comps=comps.filter(function(c){ return dist3(c.lab,refC)<=cT&&c.a>=(c.border?0.5:0.3)*refA; });
+    pts.ref={ x:ref.x, y:ref.y, w:ref.w, h:ref.h, user:true };
+    if(!comps.length) return pts;
+  }
   var areas=comps.map(function(c){ return c.a; }).sort(function(a,b){ return a-b; }), big=areas[areas.length-1];
-  comps=comps.filter(function(c){ return c.a>=Math.max(12,big*0.02); });
+  if(!ref) comps=comps.filter(function(c){ return c.a>=Math.max(12,big*0.02); });
   var rs=comps.map(function(c){ return c.r; }).sort(function(a,b){ return a-b; }), rmed=rs[Math.floor(rs.length/2)];
-  comps=comps.filter(function(c){ return c.r>=rmed*0.35; });
+  if(!ref) comps=comps.filter(function(c){ return c.r>=rmed*0.35; });
   var ratios=comps.map(function(c){ return c.a/(c.r*c.r); }).sort(function(a,b){ return a-b; }), f=ratios[Math.floor((ratios.length-1)*0.3)]||Math.PI;
-  var pts=[];
-  comps.forEach(function(c){ var unit=f*c.r*c.r, k=Math.max(1,Math.round(c.a/unit));
-    if(c.border&&k===1&&c.a<0.5*f*rmed*rmed) return;
+  var autoRef=null, arD=Infinity;
+  comps.forEach(function(c){ var unit=ref?refA:f*c.r*c.r, k=Math.max(1,Math.round(c.a/unit)), sepR=ref?refR:c.r;
+    if(!ref&&c.border&&k===1&&c.a<0.5*f*rmed*rmed) return;
+    /* 자동 기준: 낱개 1개로 본 덩어리 중 크기가 대표값에 가장 가까운 것 */
+    if(!ref&&k===1&&!c.border){ var dd=Math.abs(c.r-rmed); if(dd<arD){ arD=dd; autoRef=c; } }
     k=Math.min(k,200);
     /* 거리변환 꼭대기에서 시작해 k개로 묶기 */
     var seeds=[], ord=c.px.slice().sort(function(a,b){ return D[b]-D[a]; });
-    for (var t=0;t<ord.length&&seeds.length<k;t++){ var p=ord[t], x=p%W, y=(p/W)|0, ok=true; for (var j=0;j<seeds.length;j++){ if(Math.hypot(seeds[j][0]-x,seeds[j][1]-y)<c.r*1.2){ ok=false; break; } } if(ok) seeds.push([x,y]); }
+    for (var t=0;t<ord.length&&seeds.length<k;t++){ var p=ord[t], x=p%W, y=(p/W)|0, ok=true; for (var j=0;j<seeds.length;j++){ if(Math.hypot(seeds[j][0]-x,seeds[j][1]-y)<sepR*1.2){ ok=false; break; } } if(ok) seeds.push([x,y]); }
     for (var it=0;it<6&&seeds.length>1;it++){ var s=seeds.map(function(){ return [0,0,0]; });
       c.px.forEach(function(p){ var x=p%W,y=(p/W)|0,bj=0,bd=1e18; for (var j=0;j<seeds.length;j++){ var dd=(seeds[j][0]-x)*(seeds[j][0]-x)+(seeds[j][1]-y)*(seeds[j][1]-y); if(dd<bd){ bd=dd; bj=j; } } s[bj][0]+=x; s[bj][1]+=y; s[bj][2]++; });
       seeds=seeds.map(function(q,j){ return s[j][2]?[s[j][0]/s[j][2],s[j][1]/s[j][2]]:q; }); }
     if(seeds.length===1){ var sx=0,sy=0; c.px.forEach(function(p){ sx+=p%W; sy+=(p/W)|0; }); seeds=[[sx/c.a,sy/c.a]]; }
-    seeds.forEach(function(q){ pts.push({ x:box.x+(q[0]+0.5)/sc, y:box.y+(q[1]+0.5)/sc, r:Math.max(5,c.r/sc*0.8), ai:false, loc:true }); }); });
+    seeds.forEach(function(q){ pts.push({ x:box.x+(q[0]+0.5)/sc, y:box.y+(q[1]+0.5)/sc, r:Math.max(5,(ref?Math.min(c.r,refR):c.r)/sc*0.8), ai:false, loc:true }); }); });
+  if(autoRef){ var b=autoRef.bb; pts.ref={ x:box.x+b[0]/sc, y:box.y+b[1]/sc, w:(b[2]-b[0]+1)/sc, h:(b[3]-b[1]+1)/sc, user:false }; }
   return pts;
 }
 function localRegion(g,box,old,fromFail){
   if(!old&&!fromFail) pushUndo();
-  var pts=localCount(box), reg={ uid:++REGSEQ, x:box.x, y:box.y, w:box.w, h:box.h, pts:pts, n:pts.length, local:true };
+  var pts=localCount(box,g.ref||null), reg={ uid:++REGSEQ, x:box.x, y:box.y, w:box.w, h:box.h, pts:pts.slice(), n:pts.length, local:true, ref:pts.ref&&!pts.ref.user?pts.ref:null };
   if(old){ var oi=g.regions.indexOf(old); if(oi>=0) g.regions[oi]=reg; else g.regions.push(reg); } else g.regions.push(reg); rebuildHits(g); refresh();
-  hint((fromFail?"AI를 쓸 수 없어 기기에서 직접 셌습니다. ":"")+(pts.length?pts.length+"개를 셌습니다 (기기 분석). 배경과 색이 다른 덩어리를 낱개 크기로 나눠 센 값이니, 빠지거나 잘못 붙은 번호는 ‘추가 · 제외’로 고치세요.":"범위 안에서 배경과 구분되는 대상을 찾지 못했습니다. 범위를 대상에 더 붙여 그리거나 ‘비슷한 것’을 쓰세요."));
+  hint((fromFail?"AI를 쓸 수 없어 기기에서 직접 셌습니다. ":"")+(pts.length
+    ?(g.ref?"기준 대상과 색·크기가 같은 것을 "+pts.length+"개 셌습니다 (기기 분석). ":pts.length+"개를 셌습니다 (기기 분석). 점선 ‘기준’ 상자가 낱개 1개로 본 대상이며, 다른 대상을 기준으로 하려면 ‘기준 객체 → 직접 고르기’를 누르세요. ")+"빠지거나 잘못 붙은 번호는 ‘추가 · 제외’로 고치세요."
+    :(g.ref?"기준 대상과 색이 같은 것을 범위 안에서 찾지 못했습니다. 기준을 다시 고르거나 범위를 바꿔 보세요.":"범위 안에서 배경과 구분되는 대상을 찾지 못했습니다. 범위를 대상에 더 붙여 그리거나 ‘비슷한 것’을 쓰세요.")));
 }
 var REGSEQ=0;
 function autoCount(g,box,old){
-  if(!AI||AIimg===false){ localRegion(g,box,old); return; }
+  if(!AI||AIimg===false||(g.ref&&!refInside(g.ref,box))){ localRegion(g,box,old); return; }
   if(!old) pushUndo();
   var reg={ uid:++REGSEQ, x:box.x, y:box.y, w:box.w, h:box.h, pts:[], busy:true };
   if(old){ var oi=g.regions.indexOf(old); if(oi>=0) g.regions[oi]=reg; else g.regions.push(reg); } else g.regions.push(reg); rebuildHits(g);
@@ -1403,7 +1604,8 @@ function autoCount(g,box,old){
   hint("AI가 범위 안을 세는 중입니다… (10초 안팎)"); $("status").textContent=""; refresh();
   cropBlob(box,function(blob){
     var prompt="첨부 이미지는 건설 현장 사진에서 사용자가 상자로 지정한 범위를 잘라낸 것이다. "+
-      (what?"이 범위 안의 '"+what.slice(0,40)+"'을(를) 하나씩 세라. ":"이 범위 안에서 가장 많이 반복되는 같은 종류의 물체(부재, 자재, 장비, 안전시설 등) 하나를 정해 하나씩 세라. 바닥, 벽, 하늘 같은 배경은 세지 않는다. ")+
+      (g.ref?"이미지 좌표 ("+Math.round((g.ref.x-box.x)/box.w*1000)+","+Math.round((g.ref.y-box.y)/box.h*1000)+")-("+Math.round((g.ref.x+g.ref.w-box.x)/box.w*1000)+","+Math.round((g.ref.y+g.ref.h-box.y)/box.h*1000)+") 상자 안의 물체 하나가 기준이다. 기준과 같은 종류의 물체만 하나씩 세라(기준 자신도 센다). ":"")+
+      (what?"이 범위 안의 '"+what.slice(0,40)+"'을(를) 하나씩 세라. ":g.ref?"":"이 범위 안에서 가장 많이 반복되는 같은 종류의 물체(부재, 자재, 장비, 안전시설 등) 하나를 정해 하나씩 세라. 바닥, 벽, 하늘 같은 배경은 세지 않는다. ")+
       "서로 겹치거나 맞닿아 있어도 각각 따로 센다. 가장자리에서 잘린 것은 절반 이상 보일 때만 센다. "+
       "각 물체 중심 위치를 이미지 왼쪽 위가 (0,0), 오른쪽 아래가 (1000,1000)인 정수 좌표로 적어라. "+
       '설명 없이 JSON 하나만 출력: {"label":"물체 이름(한국어, 10자 이내)","count":정수,"points":[[x,y],...]} '+
@@ -1514,12 +1716,12 @@ function loadSample(k,quiet){
   img.src=s.src;
 }
 ["barrier","cone","earth"].forEach(function(k){ $("sm-"+k).addEventListener("click",function(){ loadSample(k); }); });
-window.addEventListener("resize",function(){ render(); });
+window.addEventListener("resize",function(){ layoutView(true); });
 
 /* ---------- 화면: AR 실측 · 사진 물량 · 산출 내역 ---------- */
 function setView(v){
   S.view=v; ["ar","photo","report"].forEach(function(k){ $("v-"+k).setAttribute("aria-selected",String(k===v)); $("view-"+k).hidden=k!==v; });
-  if(v==="photo") render(); if(v==="report") list();
+  if(v==="photo"){ layoutView(true); render(); } if(v==="report") list();
 }
 function report(sm){
   $("repSummary").innerHTML=sm.map(function(x){ return '<div class="sum"><dt>'+x[0]+'</dt><dd>'+x[1]+(x[2]?'<small>'+x[2]+'</small>':'')+'</dd></div>'; }).join("");
@@ -1550,11 +1752,12 @@ document.addEventListener("keydown",function(e){
   if((e.ctrlKey||e.metaKey)&&!typing&&(e.key==="y"||e.key==="Y")){ e.preventDefault(); redo(); return; }
   if(e.key==="Escape"){ if(S.editing&&selH){ selH=null; editPanel(); render(); } else if(busyRegions().length&&!inProgress()) cancelAI(); else cancelDraw(); return; }
   if((e.key==="Delete"||e.key==="Backspace")&&S.editing&&selH&&!typing){ e.preventDefault(); deleteSel(); }
+  if(!typing&&S.photo&&S.view!=="report"&&!e.ctrlKey&&!e.metaKey){ if(e.key==="+"||e.key==="=") zoomAt(V.z*1.4,V.vw/2,V.vh/2); else if(e.key==="-") zoomAt(V.z/1.4,V.vw/2,V.vh/2); else if(e.key==="0"){ V.z=1; applyView(); } }
 });
 
 setFn("count"); hint(modeHint());
 loadSample("barrier",true);
-window.__qto={ setView:setView, view:function(){ return S.view||"photo"; }, rows:rows, inProgress:inProgress, render:render, canvas:function(){ return cv; }, localCount:localCount, undo:undo, redo:redo, setEditing:setEditing, cancelDraw:cancelDraw, deleteSel:deleteSel, UNDO:function(){ return UNDO.length; }, REDO:function(){ return REDO.length; }, S:S, earth:earthCalc, loadImage:loadImage, loadSample:loadSample, regionQ:regionQ, polyQ:polyQ, planeCal:planeCal, setCal:setCal, apply:apply, setFn:setFn, setMode:setMode, setCalMode:setCalMode, setCntMode:setCntMode, refresh:refresh, addExample:addExample, activeGroup:activeGroup, countPts:countPts, addRegion:addRegion };
+window.__qto={ viewZoom:function(){ return V.z; }, fitView:function(){ V.z=1; applyView(); }, zoomAt:zoomAt, layoutView:layoutView, setRef:setRef, refUI:refUI, setView:setView, view:function(){ return S.view||"photo"; }, rows:rows, inProgress:inProgress, render:render, canvas:function(){ return cv; }, localCount:localCount, undo:undo, redo:redo, setEditing:setEditing, cancelDraw:cancelDraw, deleteSel:deleteSel, UNDO:function(){ return UNDO.length; }, REDO:function(){ return REDO.length; }, S:S, earth:earthCalc, loadImage:loadImage, loadSample:loadSample, regionQ:regionQ, polyQ:polyQ, planeCal:planeCal, setCal:setCal, apply:apply, setFn:setFn, setMode:setMode, setCalMode:setCalMode, setCntMode:setCntMode, refresh:refresh, addExample:addExample, activeGroup:activeGroup, countPts:countPts, addRegion:addRegion };
 })();
 </script>
 <script src="app-ui.js"></script></body></html>

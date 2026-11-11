@@ -1,0 +1,16 @@
+/* 아이패드 홈 화면 앱 보정 */
+html{-webkit-text-size-adjust:100%;touch-action:manipulation}
+html.ipad .wrap{max-width:1280px}
+html.standalone body{overscroll-behavior:none}
+html.ipad button,html.ipad .btn{-webkit-tap-highlight-color:transparent}
+
+/* 가로 화면: 왼쪽 사진, 오른쪽 도구 */
+@media (min-width:1000px) and (orientation:landscape){
+  html.ipad #stageWrap:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) 400px;
+    grid-template-areas:"stage step" "stage tool" "pbar tool" "pbar2 tool";grid-template-rows:auto 1fr auto auto}
+  html.ipad #stageWrap > .stage{grid-area:stage}
+  html.ipad #stageWrap > #stepTag{grid-area:step;border-left:1px solid var(--line)}
+  html.ipad #stageWrap > .tool{grid-area:tool;border-top:0;border-left:1px solid var(--line);align-self:stretch;min-width:0}
+  html.ipad #stageWrap > .pbar{grid-area:pbar}
+  html.ipad #stageWrap > .pbar2{grid-area:pbar2}
+}

@@ -2,7 +2,7 @@
 
     python3 ai-qto/_build/build_ipad.py <photo-qto.html 경로>
 
-photo-qto.html 옆의 brand/, samples/ 폴더도 함께 복사한다.
+photo-qto.html 옆의 brand/, samples/ 폴더와 ar-web.js(아이패드 AR 실측)도 함께 복사한다.
 만든 뒤 main 브랜치에 커밋하면 GitHub Pages(…/ArchitechBIM/ai-qto/)에 반영된다.
 """
 import os, re, shutil, sys, time
@@ -33,7 +33,12 @@ head = ('<!doctype html><html lang="ko"><head><meta charset="utf-8">'
         '<style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}'
         'body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style>'
         '<link rel="stylesheet" href="ipad.css?v=' + build + '"><script src="ipad.js?v=' + build + '"></script></head><body>')
-open(os.path.join(out, 'index.html'), 'w', encoding='utf-8').write(head + page + '</body></html>')
+tail = ''
+ar = os.path.join(os.path.dirname(src), 'ar-web.js')
+if os.path.exists(ar):
+    shutil.copy(ar, os.path.join(out, 'ar-web.js'))
+    tail = '<script src="ar-web.js?v=' + build + '"></script>'
+open(os.path.join(out, 'index.html'), 'w', encoding='utf-8').write(head + page + tail + '</body></html>')
 
 sw = open(os.path.join(here, 'sw.template.js'), encoding='utf-8').read().replace('__BUILD__', build)
 open(os.path.join(out, 'sw.js'), 'w', encoding='utf-8').write(sw)

@@ -38,7 +38,5 @@
     var s=document.querySelector(".drop-s");
     if(s) s.textContent="‘카메라로 촬영’을 누르면 아이패드 카메라가 바로 열립니다. 사진 앱에 있는 사진은 ‘앨범에서 선택’으로 불러옵니다.";
     var v=document.querySelector(".brand .ver"); if(v) v.textContent=v.textContent+" · iPad";
-    /* AR 실측은 Android(ARCore) 전용 — 아이패드에서는 탭을 숨긴다 */
-    var ar=document.getElementById("v-ar"); if(ar) ar.hidden=true;
   });
 })();

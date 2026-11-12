@@ -1,6 +1,6 @@
 /* AI 사진분석 물량 — 오프라인 실행용. 화면(index.html)은 새 버전을 먼저 받고, 나머지는 저장본을 먼저 쓴다 */
 const V = "ai-qto-__BUILD__";
-const CORE = ["./", "index.html", "ipad.js", "ipad.css", "manifest.webmanifest",
+const CORE = ["./", "index.html", "ipad.js", "ipad.css", "ar-web.js", "manifest.webmanifest",
   "icons/apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png", "brand/poscoenc-logo.png",
   "samples/site-barrier.jpg", "samples/site-cone.jpg", "samples/site-earth.jpg",
   "samples/thumb-site-barrier.jpg", "samples/thumb-site-cone.jpg", "samples/thumb-site-earth.jpg"];

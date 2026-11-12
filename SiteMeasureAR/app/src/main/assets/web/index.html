@@ -939,8 +939,105 @@ function earthCalc(it){
 }
 
 /* =========================================================
-   개수: 예시 상자 + 정규화 상관(NCC), 크기 3단계
+   개수 엔진 v2 (실측 사진 시험으로 조정: 철근 다발 50장 기준 오차 약 10%)
+   예시(기준) 크기로 가로·세로를 따로 정규화 → 밝은/어두운 덩어리 후보(LoG 3크기)
+   → 후보마다 고리별 색·경계 특징 → 예시와의 거리 → 가장 닮은 후보로 예시를 늘려 다시 비교
+   → 겹침 제거 · 무리에서 떨어진 점 제거
    ========================================================= */
+var CNT={ D:18, scl:[0.8,1,1.25], tau:1.5, boot:6, mind:0.6, iso:2.2 };
+function refl(i,n){ if(n<2) return 0; while(i<0||i>=n){ i=i<0?-i:2*n-2-i; } return i; }
+function gblur(A,w,h,sig){
+  var r=Math.max(1,Math.ceil(sig*3)), k=new Float32Array(2*r+1), s=0, i, x, y, j;
+  for (i=-r;i<=r;i++){ k[i+r]=Math.exp(-i*i/(2*sig*sig)); s+=k[i+r]; } for (i=0;i<k.length;i++) k[i]/=s;
+  var T=new Float32Array(w*h), O=new Float32Array(w*h);
+  for (y=0;y<h;y++){ var row=y*w; for (x=0;x<w;x++){ var a=0; for (j=-r;j<=r;j++) a+=k[j+r]*A[row+refl(x+j,w)]; T[row+x]=a; } }
+  for (y=0;y<h;y++) for (x=0;x<w;x++){ var b=0; for (j=-r;j<=r;j++) b+=k[j+r]*T[refl(y+j,h)*w+x]; O[y*w+x]=b; }
+  return O; }
+/* OpenCV Laplacian(ksize=3) 와 같은 핵: [2 0 2; 0 -8 0; 2 0 2] */
+function lap3(G,w,h){ var O=new Float32Array(w*h);
+  for (var y=0;y<h;y++){ var y0=refl(y-1,h)*w, y1=y*w, y2=refl(y+1,h)*w; for (var x=0;x<w;x++){ var x0=refl(x-1,w), x2=refl(x+1,w);
+    O[y1+x]=2*(G[y0+x0]+G[y0+x2]+G[y2+x0]+G[y2+x2])-8*G[y1+x]; } } return O; }
+function gradMag(L,w,h){ var O=new Float32Array(w*h);
+  for (var y=0;y<h;y++){ var y0=refl(y-1,h)*w, y1=y*w, y2=refl(y+1,h)*w; for (var x=0;x<w;x++){ var x0=refl(x-1,w), x2=refl(x+1,w);
+    var gx=(L[y0+x2]+2*L[y1+x2]+L[y2+x2])-(L[y0+x0]+2*L[y1+x0]+L[y2+x0]), gy=(L[y2+x0]+2*L[y2+x]+L[y2+x2])-(L[y0+x0]+2*L[y0+x]+L[y0+x2]);
+    O[y1+x]=Math.sqrt(gx*gx+gy*gy)/4; } } return O; }
+function median(a){ if(!a.length) return 0; var b=Array.prototype.slice.call(a).sort(function(p,q){ return p-q; }); return b[(b.length-1)>>1]; }
+/* 사진 일부를 (가로 sx, 세로 sy 배율로) 잘라 Lab(OpenCV 8비트 눈금) 세 채널로 */
+function labCrop(X0,Y0,X1,Y1,sx,sy){
+  var w=Math.max(8,Math.round((X1-X0)*sx)), h=Math.max(8,Math.round((Y1-Y0)*sy)), c=document.createElement("canvas"); c.width=w; c.height=h;
+  var g=c.getContext("2d"); g.imageSmoothingQuality="high"; g.drawImage(S.photo,X0,Y0,X1-X0,Y1-Y0,0,0,w,h);
+  var d=g.getImageData(0,0,w,h).data, n=w*h, L=new Float32Array(n), A=new Float32Array(n), B=new Float32Array(n);
+  for (var i=0;i<n;i++){ var q=toLab(d[i*4],d[i*4+1],d[i*4+2]); L[i]=q[0]*2.55; A[i]=q[1]+128; B[i]=q[2]+128; }
+  return { w:w, h:h, L:L, A:A, B:B }; }
+function localMax(M,w,h,rad,minv){ var out=[], r=Math.max(1,rad), r2=r*r;
+  for (var y=0;y<h;y++) for (var x=0;x<w;x++){ var v=M[y*w+x]; if(!(v>minv)) continue; var ok=true;
+    for (var dy=-r;dy<=r&&ok;dy++){ var yy=y+dy; if(yy<0||yy>=h) continue; for (var dx=-r;dx<=r;dx++){ if(dx*dx+dy*dy>r2) continue; var xx=x+dx; if(xx<0||xx>=w) continue; if(M[yy*w+xx]>v){ ok=false; break; } } }
+    if(ok) out.push([x,y,v]); }
+  return out; }
+/* 예시가 없을 때: 범위 안에서 가장 많이 반복되는 덩어리 크기 · 밝기 극성 (정확도 한계 → 기준 1개 지정을 권함) */
+function estimateScale(box){
+  var s=Math.min(1,400/Math.max(box.w,box.h)), C=labCrop(box.x,box.y,box.x+box.w,box.y+box.h,s,s), best=null;
+  [-1,1].forEach(function(pol){ [10,14,20,28,40,56,80].forEach(function(D){ var d=D*s; if(d<5||d>Math.min(C.w,C.h)/2) return;
+    var sig=d/2/Math.SQRT2, lg=lap3(gblur(C.L,C.w,C.h,sig),C.w,C.h), M=new Float32Array(lg.length);
+    for (var i=0;i<lg.length;i++) M[i]=(pol<0?-lg[i]:lg[i])*sig*sig;
+    var pk=localMax(M,C.w,C.h,Math.max(1,(Math.max(3,Math.floor(d*0.8)|1)-1)>>1),0).map(function(p){ return p[2]; }).sort(function(a,b){ return b-a; });
+    if(pk.length<3) return; var top=pk.slice(0,Math.max(3,Math.floor(pk.length/3))), sc=median(top)*Math.min(1,pk.length*d*d/(C.w*C.h));
+    if(!best||sc>best.sc) best={ sc:sc, D:D, pol:pol }; }); });
+  return best||{ D:Math.max(8,Math.min(box.w,box.h)/6), pol:-1 }; }
+function countEngine(box,exs,opt){
+  opt=opt||{}; var P=CNT, auto=!exs||!exs.length, D=P.D, r=D/2, d, sx, sy, pol=null, ew, eh;
+  if(auto){ var es=estimateScale(box); d=es.D; pol=es.pol; ew=eh=d; }
+  else { ew=median(exs.map(function(e){ return e.w; })); eh=median(exs.map(function(e){ return e.h; })); d=Math.min(ew,eh); }
+  sx=D/ew; sy=D/eh; if(auto||Math.max(sx,sy)/Math.min(sx,sy)<1.25){ sx=sy=D/d; }
+  /* 범위가 예시보다 아주 크면 계산량을 줄인다 (D를 10까지 줄임) */
+  var area=box.w*sx*box.h*sy; if(area>1.4e6){ var k=Math.max(10/D,Math.sqrt(1.4e6/area)); sx*=k; sy*=k; D*=k; r=D/2; }
+  var pad=Math.round(Math.max(ew,eh)*0.8), X0=Math.max(0,Math.floor(box.x-pad)), Y0=Math.max(0,Math.floor(box.y-pad)), X1=Math.min(S.W,Math.ceil(box.x+box.w+pad)), Y1=Math.min(S.H,Math.ceil(box.y+box.h+pad));
+  var C=labCrop(X0,Y0,X1,Y1,sx,sy), w=C.w, h=C.h, n=w*h, L=C.L, GM=gradMag(L,w,h);
+  function tc(x,y){ return [(x-X0)*sx,(y-Y0)*sy]; }
+  var exc=auto?[]:exs.map(function(e){ return tc(e.x+e.w/2,e.y+e.h/2); });
+  if(pol==null){ var sig0=r/Math.SQRT2, lg0=lap3(gblur(L,w,h,sig0),w,h); pol=median(exc.map(function(p){ return lg0[Math.min(h-1,Math.max(0,Math.round(p[1])))*w+Math.min(w-1,Math.max(0,Math.round(p[0])))]; }))<0?-1:1; }
+  var M=new Float32Array(n).fill(-1e9);
+  P.scl.forEach(function(k){ var sig=D*k/2/Math.SQRT2, lg=lap3(gblur(L,w,h,sig),w,h), s2=sig*sig; for (var i=0;i<n;i++){ var v=(pol<0?-lg[i]:lg[i])*s2; if(v>M[i]) M[i]=v; } });
+  var bx0=(box.x-X0)*sx, by0=(box.y-Y0)*sy, bx1=(box.x+box.w-X0)*sx, by1=(box.y+box.h-Y0)*sy;
+  var cand=localMax(M,w,h,(Math.max(3,Math.floor(D*0.55)|1)-1)>>1,0.12*255*0.1).filter(function(p){ return p[0]>=bx0&&p[0]<=bx1&&p[1]>=by0&&p[1]<=by1; });
+  var out=[]; out.ref=null; if(!cand.length) return out;
+  /* 고리 특징: 중심 원 · 안쪽 고리 · 바깥 둘레의 L·a·b 평균, 안쪽 밝기 흩어짐, 경계·중심·바깥 기울기 */
+  var R=Math.ceil(r*1.45), offs=[[],[],[]];
+  for (var dy=-R;dy<=R;dy++) for (var dx=-R;dx<=R;dx++){ var dd=Math.hypot(dx,dy); if(dd<=r*0.5) offs[0].push([dx,dy]); else if(dd>r*0.5&&dd<=r*0.95) offs[1].push([dx,dy]); else if(dd>r*1.05&&dd<=r*1.45) offs[2].push([dx,dy]); }
+  function feat(px,py){ var f=[], x=Math.min(w-1,Math.max(0,Math.round(px))), y=Math.min(h-1,Math.max(0,Math.round(py))), Ls=[], gs=[0,0,0];
+    offs.forEach(function(o,m){ var a=0,b=0,c=0,g=0; o.forEach(function(q){ var i=refl(y+q[1],h)*w+refl(x+q[0],w); a+=L[i]; b+=C.A[i]; c+=C.B[i]; g+=GM[i]; if(m<2) Ls.push(L[i]); });
+      f.push(a/o.length,b/o.length,c/o.length); gs[m]=g/o.length; });
+    var mu=0; Ls.forEach(function(v){ mu+=v; }); mu/=Ls.length; var sd=0; Ls.forEach(function(v){ sd+=(v-mu)*(v-mu); });
+    f.push(Math.sqrt(sd/Ls.length),gs[1],gs[0],gs[2]); return f; }
+  var F=cand.map(function(p){ return feat(p[0],p[1]); }), lv=cand.map(function(p){ return p[2]; }), NF=F[0].length, eidx=[];
+  if(auto){ var o=cand.map(function(_,i){ return i; }).sort(function(a,b){ return lv[b]-lv[a]; }).slice(0,Math.max(8,Math.floor(cand.length/10)));
+    var med=[], sdv=[]; for (var j=0;j<NF;j++){ var col=o.map(function(i){ return F[i][j]; }); med.push(median(col)); var mu2=col.reduce(function(a,b){ return a+b; },0)/col.length; sdv.push(Math.sqrt(col.reduce(function(a,b){ return a+(b-mu2)*(b-mu2); },0)/col.length)+1e-3); }
+    eidx=o.map(function(i){ var s=0; for (var j=0;j<NF;j++){ var z=(F[i][j]-med[j])/sdv[j]; s+=z*z; } return [i,s]; }).sort(function(a,b){ return a[1]-b[1]; }).slice(0,5).map(function(q){ return q[0]; }); }
+  else exc.forEach(function(c){ var bj=-1, bd=1e18; cand.forEach(function(p,i){ var q=(p[0]-c[0])*(p[0]-c[0])+(p[1]-c[1])*(p[1]-c[1]); if(q<bd){ bd=q; bj=i; } });
+    if(bj>=0&&bd<=(r*0.8)*(r*0.8)) eidx.push(bj);
+    else { cand.push([c[0],c[1],M[Math.min(h-1,Math.max(0,Math.round(c[1])))*w+Math.min(w-1,Math.max(0,Math.round(c[0])))]]); F.push(feat(c[0],c[1])); lv.push(cand[cand.length-1][2]); eidx.push(cand.length-1); } });
+  var N=cand.length, SD=[]; for (var j=0;j<NF;j++){ var col=F.map(function(f){ return f[j]; }), md=median(col); SD.push(median(col.map(function(v){ return Math.abs(v-md); }))*1.4826+1); }
+  function dist(E){ return F.map(function(f){ var best=1e9; E.forEach(function(e){ var s=0, g=F[e]; for (var j=0;j<NF;j++){ var z=(f[j]-g[j])/SD[j]; s+=z*z; } s=Math.sqrt(s/NF); if(s<best) best=s; }); return best; }); }
+  var DI=dist(eidx);
+  if(P.boot){ var add=DI.map(function(v,i){ return [v,i]; }).sort(function(a,b){ return a[0]-b[0]; }).slice(0,P.boot*3).map(function(q){ return q[1]; }).filter(function(i){ return eidx.indexOf(i)<0; }).slice(0,P.boot);
+    eidx=eidx.concat(add); DI=dist(eidx); }
+  var lref=median(eidx.map(function(i){ return lv[i]; }))+1e-6, tau=opt.tau||P.tau, md2=Math.pow(D*P.mind,2), keep=[];
+  cand.map(function(_,i){ return i; }).sort(function(a,b){ return (-DI[b]+0.35*Math.min(1.5,Math.max(0,lv[b]/lref)))-(-DI[a]+0.35*Math.min(1.5,Math.max(0,lv[a]/lref))); })
+    .forEach(function(i){ if(DI[i]>tau||lv[i]/lref<0.25) return; var p=cand[i];
+      for (var k=0;k<keep.length;k++){ var q=keep[k]; if((p[0]-q[0])*(p[0]-q[0])+(p[1]-q[1])*(p[1]-q[1])<md2) return; } keep.push(p); });
+  function nnd(){ return keep.map(function(p,i){ var b=1e18; keep.forEach(function(q,j){ if(i===j) return; var v=(p[0]-q[0])*(p[0]-q[0])+(p[1]-q[1])*(p[1]-q[1]); if(v<b) b=v; }); return Math.sqrt(b); }); }
+  if(P.iso&&keep.length>=10){ var nn=nnd(); if(median(nn)<D*1.5) keep=keep.filter(function(_,i){ return nn[i]<D*P.iso; }); }
+  /* 사진 전체에서 찾을 때: 가장 큰 무리와 동떨어진 작은 무리는 뺀다 */
+  if(opt.clus&&keep.length>=10){ var nn2=nnd(); if(median(nn2)<D*1.5){ var lab=keep.map(function(){ return -1; }), id=0, lim=Math.pow(D*opt.clus,2);
+    for (var a=0;a<keep.length;a++){ if(lab[a]>=0) continue; var st=[a]; lab[a]=id; while(st.length){ var u=st.pop(); for (var b=0;b<keep.length;b++){ if(lab[b]<0&&(keep[u][0]-keep[b][0])*(keep[u][0]-keep[b][0])+(keep[u][1]-keep[b][1])*(keep[u][1]-keep[b][1])<lim){ lab[b]=id; st.push(b); } } } id++; }
+    var sz=[]; lab.forEach(function(l){ sz[l]=(sz[l]||0)+1; }); var big=Math.max.apply(null,sz); keep=keep.filter(function(_,i){ return sz[lab[i]]>=Math.max(3,0.12*big); }); } }
+  /* 빽빽한 다발인가: 이웃 간격이 지름 1.5배 안이고, 찾은 점들이 차지한 영역을 낱개가 촘촘히 채움 */
+  if(keep.length>=4){ var nn3=nnd(), kx0=1e9,ky0=1e9,kx1=-1e9,ky1=-1e9; keep.forEach(function(p){ kx0=Math.min(kx0,p[0]); ky0=Math.min(ky0,p[1]); kx1=Math.max(kx1,p[0]); ky1=Math.max(ky1,p[1]); });
+    out.fill=keep.length*D*D/Math.max(D*D,(kx1-kx0+D)*(ky1-ky0+D)); out.packed=median(nn3)<D*1.5&&out.fill>=0.3; } else out.packed=false;
+  var rr=Math.max(5,Math.min(ew,eh)/2*0.8);
+  keep.forEach(function(p){ out.push({ x:X0+p[0]/sx, y:Y0+p[1]/sy, r:rr, ai:false, loc:true }); });
+  if(auto&&eidx.length){ var c0=cand[eidx[0]], cx=X0+c0[0]/sx, cy=Y0+c0[1]/sy; out.ref={ x:cx-d/2, y:cy-d/2, w:d, h:d, user:false }; }
+  return out; }
 function level(s){
   var key=s.toFixed(3); if(S.levels[key]) return S.levels[key];
   var W=Math.max(8,Math.round(S.W*s)),H=Math.max(8,Math.round(S.H*s)),c=document.createElement("canvas"); c.width=W; c.height=H;
@@ -970,7 +1067,7 @@ function nccMap(ex,k){
     M[y*MW+x]=acc/Math.sqrt(v2*sT2); }
   return out;
 }
-function peaks(gr){
+function peaksNCC(gr){
   var cand=[];
   gr.examples.forEach(function(ex){
     if(!ex.maps) ex.maps=[0.8,1,1.25].map(function(k){ return nccMap(ex,k); });
@@ -984,7 +1081,14 @@ function peaks(gr){
   for (var i=0;i<cand.length&&keep.length<3000;i++){ var c=cand[i], ok=true;
     for (var k=0;k<keep.length;k++){ var q=keep[k]; if(Math.hypot(q.x-c.x,q.y-c.y)<1.2*Math.min(q.r,c.r)){ ok=false; break; } }
     if(ok) keep.push(c); }
-  gr.simHits=keep; rebuildHits(gr);
+  return keep;
+}
+function peaks(gr){
+  if(!gr.examples.length){ gr.simHits=[]; rebuildHits(gr); return; }
+  var tau=1.5+(0.65-(gr.thr||0.65))*4, r=countEngine({x:0,y:0,w:S.W,h:S.H},gr.examples,{ tau:Math.max(0.4,tau), clus:1.6 });
+  /* 빽빽한 다발(철근·강관·각재 끝면)은 새 엔진, 띄엄띄엄 놓인 것(라바콘·배리어)은 모양 대조(NCC)가 더 정확 */
+  gr.simHits=r.packed?r:peaksNCC(gr); gr.engine=r.packed?"packed":"ncc";
+  rebuildHits(gr);
 }
 function rebuildHits(gr){
   var all=(gr.simHits||[]).slice(); (gr.regions||[]).forEach(function(r){ if(!r.failed&&!r.canceled) all=all.concat(r.pts); });
@@ -1749,75 +1853,12 @@ function otsu(v,lo,hi){ var B=64,h=new Float64Array(B),n=v.length; for (var i=0;
   for (var i=0;i<B;i++){ wB+=h[i]; if(!wB) continue; var wF=n-wB; if(!wF) break; sB+=i*h[i]; var mB=sB/wB,mF=(sum-sB)/wF,bv=wB*wF*(mB-mF)*(mB-mF); if(bv>best){ best=bv; bt=i; } }
   return lo+(bt+0.5)/B*(hi-lo); }
 function localCount(box,ref){
-  var sc=Math.min(1,420/Math.max(box.w,box.h)), W=Math.max(8,Math.round(box.w*sc)), H=Math.max(8,Math.round(box.h*sc)), N=W*H;
-  var c=document.createElement("canvas"); c.width=W; c.height=H; var g=c.getContext("2d"); g.imageSmoothingQuality="high";
-  g.drawImage(S.photo,box.x,box.y,box.w,box.h,0,0,W,H); var d=g.getImageData(0,0,W,H).data, L=new Array(N);
-  for (var i=0;i<N;i++) L[i]=toLab(d[i*4],d[i*4+1],d[i*4+2]);
-  function maskFrom(bgc){ var dv=new Float32Array(N); for (var i=0;i<N;i++){ var m=1e9; for (var j=0;j<bgc.length;j++) m=Math.min(m,dist3(L[i],bgc[j])); dv[i]=m; }
-    var mx=0; for (var i=0;i<N;i++) if(dv[i]>mx) mx=dv[i]; var T=Math.max(10,otsu(dv,0,Math.min(120,mx)+1e-3)), M=new Uint8Array(N); for (var i=0;i<N;i++) M[i]=dv[i]>T?1:0; return M; }
-  var ring=[], bw=Math.max(2,Math.round(Math.min(W,H)*0.02)); for (var y=0;y<H;y++) for (var x=0;x<W;x++) if(x<bw||y<bw||x>=W-bw||y>=H-bw) ring.push(L[y*W+x]);
-  var km=kmeans(ring,3,8), bg=km.c.filter(function(q,j){ return km.n[j]>=ring.length*0.12; }), bgUsed=bg, M=maskFrom(bg), fr=0; for (var i=0;i<N;i++) fr+=M[i];
-  if(fr>0.8*N||fr<0.02*N){ /* 대상이 상자를 거의 채움: 가장 어두운 색(틈·그림자)을 배경으로 */
-    var all=[]; for (var i=0;i<N;i+=2) all.push(L[i]); var k2=kmeans(all,3,8), dk=0; k2.c.forEach(function(q,j){ if(q[0]<k2.c[dk][0]) dk=j; }); bgUsed=[k2.c[dk]]; M=maskFrom(bgUsed); }
-  function morph(A,er){ var B=new Uint8Array(N); for (var y=0;y<H;y++) for (var x=0;x<W;x++){ var v=er?1:0;
-      for (var dy=-1;dy<=1&&(er?v:!v);dy++) for (var dx=-1;dx<=1;dx++){ var xx=x+dx,yy=y+dy; var q=(xx<0||yy<0||xx>=W||yy>=H)?(er?1:0):A[yy*W+xx]; if(er&&!q){ v=0; break; } if(!er&&q){ v=1; break; } }
-      B[y*W+x]=v; } return B; }
-  M=morph(morph(M,true),false);
-  /* 구멍 메우기: 테두리에서 닿지 않는 배경은 물체 안쪽 */
-  var out=new Uint8Array(N), st=[]; for (var x=0;x<W;x++){ st.push(x,(H-1)*W+x); } for (var y=0;y<H;y++){ st.push(y*W,y*W+W-1); }
-  while(st.length){ var p=st.pop(); if(out[p]||M[p]) continue; out[p]=1; var x=p%W,y=(p/W)|0; if(x>0) st.push(p-1); if(x<W-1) st.push(p+1); if(y>0) st.push(p-W); if(y<H-1) st.push(p+W); }
-  /* 작은 구멍(반사·글자)만 메우고, 낱개 사이 틈은 남긴다 */
-  var hl=new Int32Array(N); for (var s1=0;s1<N;s1++){ if(out[s1]||M[s1]||hl[s1]) continue; var hq=[s1], hp=[]; hl[s1]=1;
-    while(hq.length){ var p=hq.pop(); hp.push(p); var x=p%W,y=(p/W)|0; [[1,0],[-1,0],[0,1],[0,-1]].forEach(function(o){ var xx=x+o[0],yy=y+o[1]; if(xx<0||yy<0||xx>=W||yy>=H) return; var r=yy*W+xx; if(!out[r]&&!M[r]&&!hl[r]){ hl[r]=1; hq.push(r); } }); }
-    if(hp.length<Math.max(20,N*0.0004)) hp.forEach(function(p){ M[p]=1; }); }
-  /* 거리변환 (체임퍼 3-4) */
-  var D=new Float32Array(N); for (var i=0;i<N;i++) D[i]=M[i]?1e6:0;
-  for (var y=0;y<H;y++) for (var x=0;x<W;x++){ var i=y*W+x; if(!D[i]) continue; var v=D[i];
-    if(x>0) v=Math.min(v,D[i-1]+3); if(y>0){ if(x>0) v=Math.min(v,D[i-W-1]+4); if(x<W-1) v=Math.min(v,D[i-W+1]+4); v=Math.min(v,D[i-W]+3); } if(x===0||y===0||x===W-1||y===H-1) v=Math.min(v,3); D[i]=v; }
-  for (var y=H-1;y>=0;y--) for (var x=W-1;x>=0;x--){ var i=y*W+x; if(!D[i]) continue; var v=D[i];
-    if(x<W-1) v=Math.min(v,D[i+1]+3); if(y<H-1){ v=Math.min(v,D[i+W]+3); if(x<W-1) v=Math.min(v,D[i+W+1]+4); if(x>0) v=Math.min(v,D[i+W-1]+4); } D[i]=v; }
-  for (var i=0;i<N;i++) D[i]/=3;
-  /* 덩어리 나누기 */
-  var lab=new Int32Array(N), comps=[];
-  for (var s0=0;s0<N;s0++){ if(!M[s0]||lab[s0]) continue; var id=comps.length+1, px=[], q=[s0]; lab[s0]=id; var rmax=0,border=false, bx0=W,by0=H,bx1=0,by1=0, cl=[0,0,0];
-    while(q.length){ var p=q.pop(); px.push(p); if(D[p]>rmax) rmax=D[p]; var x=p%W,y=(p/W)|0; if(x===0||y===0||x===W-1||y===H-1) border=true;
-      if(x<bx0)bx0=x; if(x>bx1)bx1=x; if(y<by0)by0=y; if(y>by1)by1=y; cl[0]+=L[p][0]; cl[1]+=L[p][1]; cl[2]+=L[p][2];
-      for (var dy=-1;dy<=1;dy++) for (var dx=-1;dx<=1;dx++){ var xx=x+dx,yy=y+dy; if(xx<0||yy<0||xx>=W||yy>=H) continue; var r=yy*W+xx; if(M[r]&&!lab[r]){ lab[r]=id; q.push(r); } } }
-    comps.push({ px:px, a:px.length, r:Math.max(1,rmax), border:border, bb:[bx0,by0,bx1,by1], lab:[cl[0]/px.length,cl[1]/px.length,cl[2]/px.length] }); }
-  var pts=[]; pts.ref=null;
-  if(!comps.length) return pts;
-  /* 기준 객체: 직접 고른 상자가 있으면 그 대상의 면적·반지름·색을 낱개 기준으로 쓴다 */
-  var refA=0, refR=0, refC=null;
-  if(ref){
-    if(refInside(ref,box)){ var rx0=Math.max(0,Math.floor((ref.x-box.x)*sc)), ry0=Math.max(0,Math.floor((ref.y-box.y)*sc)), rx1=Math.min(W,Math.ceil((ref.x+ref.w-box.x)*sc)), ry1=Math.min(H,Math.ceil((ref.y+ref.h-box.y)*sc)), tot=0, cs=[0,0,0];
-      for (var y=ry0;y<ry1;y++) for (var x=rx0;x<rx1;x++){ var i=y*W+x; tot++; if(!M[i]) continue; refA++; if(D[i]>refR) refR=D[i]; cs[0]+=L[i][0]; cs[1]+=L[i][1]; cs[2]+=L[i][2]; }
-      if(refA>=Math.max(6,tot*0.15)) refC=[cs[0]/refA,cs[1]/refA,cs[2]/refA]; else refA=0; }
-    if(!refA){ var rw=ref.w*sc, rh=ref.h*sc; refA=Math.max(6,0.7*rw*rh); refR=Math.max(1,Math.min(rw,rh)/2); refC=refColor(ref); }
-    var bgd=Math.min.apply(null,bgUsed.map(function(q){ return dist3(q,refC); }).concat([200])), cT=Math.max(22,0.6*bgd);
-    comps=comps.filter(function(c){ return dist3(c.lab,refC)<=cT&&c.a>=(c.border?0.5:0.3)*refA; });
-    pts.ref={ x:ref.x, y:ref.y, w:ref.w, h:ref.h, user:true };
-    if(!comps.length) return pts;
-  }
-  var areas=comps.map(function(c){ return c.a; }).sort(function(a,b){ return a-b; }), big=areas[areas.length-1];
-  if(!ref) comps=comps.filter(function(c){ return c.a>=Math.max(12,big*0.02); });
-  var rs=comps.map(function(c){ return c.r; }).sort(function(a,b){ return a-b; }), rmed=rs[Math.floor(rs.length/2)];
-  if(!ref) comps=comps.filter(function(c){ return c.r>=rmed*0.35; });
-  var ratios=comps.map(function(c){ return c.a/(c.r*c.r); }).sort(function(a,b){ return a-b; }), f=ratios[Math.floor((ratios.length-1)*0.3)]||Math.PI;
-  var autoRef=null, arD=Infinity;
-  comps.forEach(function(c){ var unit=ref?refA:f*c.r*c.r, k=Math.max(1,Math.round(c.a/unit)), sepR=ref?refR:c.r;
-    if(!ref&&c.border&&k===1&&c.a<0.5*f*rmed*rmed) return;
-    /* 자동 기준: 낱개 1개로 본 덩어리 중 크기가 대표값에 가장 가까운 것 */
-    if(!ref&&k===1&&!c.border){ var dd=Math.abs(c.r-rmed); if(dd<arD){ arD=dd; autoRef=c; } }
-    k=Math.min(k,200);
-    /* 거리변환 꼭대기에서 시작해 k개로 묶기 */
-    var seeds=[], ord=c.px.slice().sort(function(a,b){ return D[b]-D[a]; });
-    for (var t=0;t<ord.length&&seeds.length<k;t++){ var p=ord[t], x=p%W, y=(p/W)|0, ok=true; for (var j=0;j<seeds.length;j++){ if(Math.hypot(seeds[j][0]-x,seeds[j][1]-y)<sepR*1.2){ ok=false; break; } } if(ok) seeds.push([x,y]); }
-    for (var it=0;it<6&&seeds.length>1;it++){ var s=seeds.map(function(){ return [0,0,0]; });
-      c.px.forEach(function(p){ var x=p%W,y=(p/W)|0,bj=0,bd=1e18; for (var j=0;j<seeds.length;j++){ var dd=(seeds[j][0]-x)*(seeds[j][0]-x)+(seeds[j][1]-y)*(seeds[j][1]-y); if(dd<bd){ bd=dd; bj=j; } } s[bj][0]+=x; s[bj][1]+=y; s[bj][2]++; });
-      seeds=seeds.map(function(q,j){ return s[j][2]?[s[j][0]/s[j][2],s[j][1]/s[j][2]]:q; }); }
-    if(seeds.length===1){ var sx=0,sy=0; c.px.forEach(function(p){ sx+=p%W; sy+=(p/W)|0; }); seeds=[[sx/c.a,sy/c.a]]; }
-    seeds.forEach(function(q){ pts.push({ x:box.x+(q[0]+0.5)/sc, y:box.y+(q[1]+0.5)/sc, r:Math.max(5,(ref?Math.min(c.r,refR):c.r)/sc*0.8), ai:false, loc:true }); }); });
-  if(autoRef){ var b=autoRef.bb; pts.ref={ x:box.x+b[0]/sc, y:box.y+b[1]/sc, w:(b[2]-b[0]+1)/sc, h:(b[3]-b[1]+1)/sc, user:false }; }
+  if(ref&&!refInside(ref,box)) ref=null;
+  var pts=countEngine(box,ref?[ref]:null);
+  if(ref&&!pts.packed){ /* 띄엄띄엄 놓인 대상: 기준 모양 대조로 범위 안만 */
+    var g={ examples:[{x:ref.x,y:ref.y,w:ref.w,h:ref.h}], thr:0.6 }, k=peaksNCC(g).filter(function(p){ return p.x>=box.x&&p.x<=box.x+box.w&&p.y>=box.y&&p.y<=box.y+box.h; });
+    var q=k.map(function(p){ return { x:p.x, y:p.y, r:Math.max(5,p.r), ai:false, loc:true }; }); q.packed=false; pts=q; }
+  if(ref) pts.ref={ x:ref.x, y:ref.y, w:ref.w, h:ref.h, user:true };
   return pts;
 }
 function localRegion(g,box,old,fromFail){
@@ -1825,7 +1866,7 @@ function localRegion(g,box,old,fromFail){
   var pts=localCount(box,g.ref||null), reg={ uid:++REGSEQ, x:box.x, y:box.y, w:box.w, h:box.h, pts:pts.slice(), n:pts.length, local:true, ref:pts.ref&&!pts.ref.user?pts.ref:null };
   if(old){ var oi=g.regions.indexOf(old); if(oi>=0) g.regions[oi]=reg; else g.regions.push(reg); } else g.regions.push(reg); rebuildHits(g); refresh();
   hint((fromFail?"AI를 쓸 수 없어 기기에서 직접 셌습니다. ":"")+(pts.length
-    ?(g.ref?"기준 대상과 색·크기가 같은 것을 "+pts.length+"개 셌습니다 (기기 분석). ":pts.length+"개를 셌습니다 (기기 분석). 점선 ‘기준’ 상자가 낱개 1개로 본 대상이며, 다른 대상을 기준으로 하려면 ‘기준 객체 → 직접 고르기’를 누르세요. ")+"빠지거나 잘못 붙은 번호는 ‘추가 · 제외’로 고치세요."
+    ?(g.ref?"기준 대상과 색·크기가 같은 것을 "+pts.length+"개 셌습니다 (기기 분석). ":pts.length+"개를 셌습니다 (기기 분석, 크기 자동 추정). 점선 ‘기준’이 낱개 하나로 본 크기입니다. 크기가 다르면 ‘기준 객체 → 직접 고르기’로 낱개 하나를 감싸세요. 기준을 정하면 훨씬 정확합니다. ")+"빠지거나 잘못 붙은 번호는 ‘추가 · 제외’로 고치세요."
     :(g.ref?"기준 대상과 색이 같은 것을 범위 안에서 찾지 못했습니다. 기준을 다시 고르거나 범위를 바꿔 보세요.":"범위 안에서 배경과 구분되는 대상을 찾지 못했습니다. 범위를 대상에 더 붙여 그리거나 ‘비슷한 것’을 쓰세요.")));
 }
 var REGSEQ=0;
@@ -1879,6 +1920,8 @@ function rows(){
     else if(k==="earth"){ var e=earthCalc(it)||{}; out.push(["토공",it.no,it.view==="section"?"단면×연장":"평면 구역",f(e.A,2),"","","","",f(e.V,1),f(e.loose,1),e.trucks||""]); }
     else if(k==="length") out.push(["길이",it.no,it.name,"","","",S.cal?f(distW(it.a,it.b),2):"","","","",""]);
     else out.push(["개수",it.no,it.name,"","","","",countPts(it).length,"","",""]); });
+  /* 다른 화면(AR 실측 등)에서 더한 줄 */
+  if(window.__qtoExtraRows) try{ window.__qtoExtraRows().forEach(function(r){ out.push(r); }); }catch(_){}
   var OV=overlaps(), ovt=0; Object.keys(OV).forEach(function(k){ ovt+=OV[k]; });
   if(ovt>1e-6) out.push(["면적 겹침 공제","","","-"+f(ovt,2),"","","","","","",""]);
   var ta=0, tv=0, ha=false; S.items.forEach(function(it){ if(kindOf(it)!=="area") return; var q=it.type==="region"?regionQ(it):polyQ(it); if(q.area==null) return; ha=true; var a=q.area-Math.min(OV[it.id]||0,q.area); ta+=a; tv+=a*(+it.thick||0)/1000; });

@@ -1,4 +1,4 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="AI 물량"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="theme-color" content="#2f62f5"><meta name="format-detection" content="telephone=no"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style><link rel="stylesheet" href="ipad.css?v=202611130921"><script src="ipad.js?v=202611130921"></script></head><body><title>AI 사진분석 물량</title>
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="AI 물량"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="theme-color" content="#2f62f5"><meta name="format-detection" content="telephone=no"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icons/apple-touch-icon.png"><link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style><link rel="stylesheet" href="ipad.css?v=202611130921"><script src="ipad.js?v=202611130921"></script></head><body><title>AI 사진분석 물량</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap">
@@ -1110,6 +1110,19 @@ function rebuildHits(gr){
   gr.hits=all.filter(function(h){ return !gr.removes.some(function(q){ return Math.hypot(q.x-h.x,q.y-h.y)<Math.max(h.r,4); }); });
 }
 function countPts(gr){ return gr.hits.concat(gr.adds); }
+function fieldReview(it){
+  var regions=(it.regions||[]).filter(function(r){return !r.failed&&!r.canceled;}), issues=[];
+  if(regions.some(function(r){return r.busy;})) issues.push("분석 진행 중");
+  if(regions.some(function(r){return !r.local&&!r.busy&&Number.isFinite(r.n)&&r.n!==(r.pts||[]).length;})) issues.push("AI 개수·위치 불일치");
+  if(regions.some(function(r,i){return regions.slice(i+1).some(function(q){return Math.max(r.x,q.x)<Math.min(r.x+r.w,q.x+q.w)&&Math.max(r.y,q.y)<Math.min(r.y+r.h,q.y+q.h);});})) issues.push("범위 겹침·중복 확인");
+  return issues;
+}
+function fieldSignature(it){return JSON.stringify([it.name,countPts(it),it.regions,it.removes]);}
+function fieldState(it){
+  if(fieldReview(it).length) return "검토 필요";
+  return it.fieldChecked===fieldSignature(it)?"현장 확인":"미확인";
+}
+
 function activeGroup(create){
   var g=S.items.filter(function(it){ return it.id===S.active&&it.type==="count"; })[0];
   if(!g&&create){ var n=S.items.filter(function(it){ return it.type==="count"; }).length+1;
@@ -1278,7 +1291,9 @@ function list(){
       var parts=[]; if((it.regions||[]).length) parts.push("범위 "+it.regions.length+(it.regions.every(function(r){ return r.local; })?" (기기)":" (AI)")); if(it.examples.length) parts.push("예시 "+it.examples.length+" · 유사도 "+it.thr.toFixed(2));
       if((it.regions||[]).length) parts.push(it.ref?"기준 직접 지정":"기준 자동");
       if(it.adds.length) parts.push("추가 "+it.adds.length); if(it.removes.length) parts.push("제외 "+it.removes.length); sub=parts.join(" · ");
-      acts='<button data-act="'+it.id+'">이 라벨로 세기</button>'+acts;
+      var issues=fieldReview(it), state=fieldState(it);
+      extra+='<p class="'+(issues.length?'warnline':'')+'">'+esc(state+(issues.length?' · '+issues.join(' / '):''))+'</p>';
+      acts='<button data-field-review="'+it.id+'" '+(issues.length?'disabled':'')+'>'+(state==='현장 확인'?'확인 취소':'번호 대조 완료')+'</button><button data-act="'+it.id+'">이 라벨로 세기</button>'+acts;
     } else if(k==="area"){
       var q=it.type==="region"?regionQ(it):polyQ(it), vol=q.area!=null?q.area*(+it.thick||0)/1000:null;
       main=sel(it,"member",MEMBERS.map(function(m){ return [m,m]; }))+'<label class="thick">두께'+inp(it,"thick","number",'inputmode="numeric" min="0"')+'mm</label>';
@@ -1984,6 +1999,14 @@ function autoCount(g,box,old){
   });
 }
 
+document.addEventListener("click",function(e){
+  var button=e.target.closest("[data-field-review]");
+  if(!button) return;
+  var it=S.items.find(function(x){return x.id===Number(button.dataset.fieldReview);});
+  if(!it||fieldReview(it).length) return;
+  it.fieldChecked=fieldState(it)==="현장 확인"?null:fieldSignature(it);
+  refresh();
+});
 /* ---------- 내보내기 ---------- */
 function rows(){
   numberItems();
@@ -2002,7 +2025,12 @@ function rows(){
   var tl=0, hl=false; S.items.forEach(function(it){ if(it.type==="line"&&S.cal){ hl=true; tl+=distW(it.a,it.b); } }); if(hl) out.push(["길이 합계","","","","","",f(tl,2),"","","",""]);
   var n=0; S.items.forEach(function(it){ if(it.type==="count") n+=countPts(it).length; });
   if(n) out.push(["개수 총합계","","","","","","",n,"","",""]);
-  return out.map(function(r){ return r.map(function(c){ return String(c).replace(/,/g,""); }); });
+  out[0].push("검토 상태","검토 사유");
+  out.slice(1).forEach(function(row){
+    var it=row[0]==="개수"?S.items.find(function(x){return x.type==="count"&&x.no===row[1];}):null;
+    row.push(it?fieldState(it):"",it?fieldReview(it).join(" / "):"");
+  });
+  return out.map(function(r){return r.map(function(c){return String(c);});});
 }
 $("copyBtn").addEventListener("click",function(){
   var text=rows().map(function(r){ return r.join("\t"); }).join("\n");
